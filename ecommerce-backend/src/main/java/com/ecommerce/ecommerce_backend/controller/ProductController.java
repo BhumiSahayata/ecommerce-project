@@ -4,7 +4,9 @@ import com.ecommerce.ecommerce_backend.model.Product;
 import com.ecommerce.ecommerce_backend.model.User;
 import com.ecommerce.ecommerce_backend.repository.ProductRepository;
 import com.ecommerce.ecommerce_backend.repository.UserRepository;
+import com.ecommerce.ecommerce_backend.service.ImageKitService;
 import com.ecommerce.ecommerce_backend.service.ProductService;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,13 +15,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/products")
@@ -34,6 +30,10 @@ public class ProductController {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private ImageKitService imageKitService;
+
+    // ✅ ADD PRODUCT
     @PostMapping("/add")
     @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<?> addProduct(
@@ -47,7 +47,6 @@ public class ProductController {
     ) {
         try {
             User user = getLoggedInUser();
-            System.out.println("Adding product for merchant: " + user.getEmail() + " (ID: " + user.getId() + ")");
 
             Product product = new Product();
             product.setName(name);
@@ -55,78 +54,54 @@ public class ProductController {
             product.setPrice(price);
             product.setCategory(category);
             product.setRating(rating);
-            product.setMerchantId(user.getId());  // ✅ Set to current merchant
+            product.setMerchantId(user.getId());
             product.setStockQuantity(stockQuantity);
             product.setInStock(stockQuantity > 0);
 
+            // ✅ Upload to ImageKit ONLY (no fallback)
             if (image != null && !image.isEmpty()) {
-                try {
-                    String uploadDir = "uploads/";
-                    File dir = new File(uploadDir);
-                    if (!dir.exists()) {
-                        dir.mkdirs();
-                    }
-
-                    String originalFilename = image.getOriginalFilename();
-                    String fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
-                    String fileName = UUID.randomUUID().toString() + fileExtension;
-
-                    Path filePath = Paths.get(uploadDir + fileName);
-                    Files.write(filePath, image.getBytes());
-
-                    String imageUrl = "/uploads/" + fileName;
-                    product.setImageUrl(imageUrl);
-
-                } catch (IOException e) {
-                    System.err.println("Error saving image: " + e.getMessage());
-                }
+                String fileName = System.currentTimeMillis() + "_" + image.getOriginalFilename();
+                String imageUrl = imageKitService.uploadImage(image, fileName);
+                product.setImageUrl(imageUrl);
             }
 
             Product savedProduct = productRepository.save(product);
-            System.out.println("Product saved with merchant_id: " + savedProduct.getMerchantId());
             return ResponseEntity.ok(savedProduct);
 
         } catch (Exception e) {
-            System.err.println("Error adding product: " + e.getMessage());
+            e.printStackTrace();
             return ResponseEntity.status(500).body("Error: " + e.getMessage());
         }
     }
 
-    // Public: all products (for customers)
+    // ✅ GET ALL PRODUCTS
     @GetMapping("/all")
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
 
-    // ✅ Merchant: ONLY their own products
+    // ✅ GET MY PRODUCTS
     @GetMapping("/my")
     @PreAuthorize("hasRole('MERCHANT')")
     public List<Product> getMyProducts() {
         User user = getLoggedInUser();
-        List<Product> myProducts = productRepository.findByMerchantId(user.getId());
-        System.out.println("Merchant " + user.getEmail() + " has " + myProducts.size() + " products");
-        return myProducts;
+        return productRepository.findByMerchantId(user.getId());
     }
 
-    // Public: get single product by ID (for customers)
+    // ✅ GET PRODUCT BY ID
     @GetMapping("/{id}")
     public ResponseEntity<?> getProductById(@PathVariable Long id) {
         try {
             Product product = productRepository.findById(id)
-                    .orElseThrow(() -> new RuntimeException("Product not found: " + id));
-
-            if (product.getImageUrl() != null && !product.getImageUrl().startsWith("http")) {
-                String fullUrl = "http://localhost:8080" + product.getImageUrl();
-                product.setImageUrl(fullUrl);
-            }
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
 
             return ResponseEntity.ok(product);
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("{\"error\": \"" + e.getMessage() + "\"}");
+            return ResponseEntity.status(500).body(e.getMessage());
         }
     }
 
-    // ✅ Merchant: Update ONLY their own products
+    // ✅ UPDATE PRODUCT (FIXED → IMAGEKIT USED)
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<?> updateProduct(
@@ -141,12 +116,12 @@ public class ProductController {
     ) {
         try {
             User user = getLoggedInUser();
+
             Product existing = productRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Product not found"));
 
-            // ✅ Security: Check if this product belongs to this merchant
             if (!existing.getMerchantId().equals(user.getId())) {
-                return ResponseEntity.status(403).body("{\"error\": \"You can only update your own products\"}");
+                return ResponseEntity.status(403).body("You can only update your own products");
             }
 
             existing.setName(name);
@@ -157,49 +132,40 @@ public class ProductController {
             existing.setStockQuantity(stockQuantity);
             existing.setInStock(stockQuantity > 0);
 
+            // ✅ Upload new image to ImageKit
             if (image != null && !image.isEmpty()) {
-                String uploadDir = "uploads/";
-                File dir = new File(uploadDir);
-                if (!dir.exists()) dir.mkdirs();
-
-                String originalFilename = image.getOriginalFilename();
-                String fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
-                String fileName = UUID.randomUUID().toString() + fileExtension;
-
-                Path filePath = Paths.get(uploadDir + fileName);
-                Files.write(filePath, image.getBytes());
-
-                String imageUrl = "/uploads/" + fileName;
+                String imageUrl = imageKitService.uploadImage(image, image.getOriginalFilename());
                 existing.setImageUrl(imageUrl);
             }
 
-            Product updatedProduct = productRepository.save(existing);
-            return ResponseEntity.ok(updatedProduct);
+            Product updated = productRepository.save(existing);
+            return ResponseEntity.ok(updated);
 
         } catch (Exception e) {
-            System.err.println("Error updating product: " + e.getMessage());
-            return ResponseEntity.status(500).body("Error: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(e.getMessage());
         }
     }
 
-    // ✅ Merchant: Delete ONLY their own products
+    // ✅ DELETE PRODUCT
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
         try {
             User user = getLoggedInUser();
+
             Product product = productRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Product not found"));
 
-            // ✅ Security: Check if this product belongs to this merchant
             if (!product.getMerchantId().equals(user.getId())) {
-                return ResponseEntity.status(403).body("{\"error\": \"You can only delete your own products\"}");
+                return ResponseEntity.status(403).body("You can only delete your own products");
             }
 
             service.deleteProduct(id);
-            return ResponseEntity.ok("{\"message\": \"Product deleted successfully\"}");
+            return ResponseEntity.ok("Deleted successfully");
+
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("{\"error\": \"" + e.getMessage() + "\"}");
+            return ResponseEntity.status(500).body(e.getMessage());
         }
     }
 

@@ -22,6 +22,14 @@
 		<java.version>17</java.version>
 	</properties>
 
+	<!-- ✅ JitPack repository - MUST be here, NOT inside dependencies -->
+	<repositories>
+		<repository>
+			<id>jitpack.io</id>
+			<url>https://jitpack.io</url>
+		</repository>
+	</repositories>
+
 	<dependencies>
 		<!-- Spring Boot Starters -->
 		<dependency>
@@ -39,8 +47,6 @@
 			<artifactId>spring-boot-starter-web</artifactId>
 		</dependency>
 
-
-
 		<!-- MySQL Driver -->
 		<dependency>
 			<groupId>com.mysql</groupId>
@@ -48,7 +54,7 @@
 			<version>8.2.0</version>
 		</dependency>
 
-		<!-- JWT - CORRECT VERSION FOR SPRING BOOT 3.2.5 -->
+		<!-- JWT -->
 		<dependency>
 			<groupId>io.jsonwebtoken</groupId>
 			<artifactId>jjwt-api</artifactId>
@@ -67,16 +73,25 @@
 			<scope>runtime</scope>
 		</dependency>
 
+		<!-- Mail -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 
-		<!-- OAuth2 Client for Social Login -->
+		<!-- ✅ ImageKit Java SDK - CORRECT DEPENDENCY -->
+<!--		<dependency>-->
+<!--			<groupId>com.github.imagekit-developer</groupId>-->
+<!--			<artifactId>imagekit-java</artifactId>-->
+<!--			<version>1.0.4_UNIMARKET-SNAPSHOT</version>-->
+<!--		</dependency>-->
+
+		<!-- OAuth2 Client -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-client</artifactId>
 		</dependency>
+
 		<!-- Lombok -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
