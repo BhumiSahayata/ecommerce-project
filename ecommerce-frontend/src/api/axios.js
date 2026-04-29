@@ -1,8 +1,9 @@
 import axios from "axios";
+import { BACKEND_URL } from "../constants";
 
 const API = axios.create({
-  baseURL: "http://localhost:8080",
-  withCredentials: true,  // Add this
+  baseURL: BACKEND_URL,
+  withCredentials: true,
 });
 
 API.interceptors.request.use((req) => {

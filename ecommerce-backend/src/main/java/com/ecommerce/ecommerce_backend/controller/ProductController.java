@@ -47,7 +47,7 @@ public class ProductController {
     ) {
         try {
             User user = getLoggedInUser();
-            System.out.println("Adding product for merchant: " + user.getEmail());
+            System.out.println("Adding product for merchant: " + user.getEmail() + " (ID: " + user.getId() + ")");
 
             Product product = new Product();
             product.setName(name);
@@ -55,7 +55,7 @@ public class ProductController {
             product.setPrice(price);
             product.setCategory(category);
             product.setRating(rating);
-            product.setMerchantId(user.getId());
+            product.setMerchantId(user.getId());  // ✅ Set to current merchant
             product.setStockQuantity(stockQuantity);
             product.setInStock(stockQuantity > 0);
 
@@ -83,6 +83,7 @@ public class ProductController {
             }
 
             Product savedProduct = productRepository.save(product);
+            System.out.println("Product saved with merchant_id: " + savedProduct.getMerchantId());
             return ResponseEntity.ok(savedProduct);
 
         } catch (Exception e) {
@@ -91,19 +92,23 @@ public class ProductController {
         }
     }
 
+    // Public: all products (for customers)
     @GetMapping("/all")
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
 
-    // ✅ FIXED: Return ALL products for merchants (not just their own)
+    // ✅ Merchant: ONLY their own products
     @GetMapping("/my")
     @PreAuthorize("hasRole('MERCHANT')")
     public List<Product> getMyProducts() {
-        // Return all products so new merchants can see and manage everything
-        return productRepository.findAll();
+        User user = getLoggedInUser();
+        List<Product> myProducts = productRepository.findByMerchantId(user.getId());
+        System.out.println("Merchant " + user.getEmail() + " has " + myProducts.size() + " products");
+        return myProducts;
     }
 
+    // Public: get single product by ID (for customers)
     @GetMapping("/{id}")
     public ResponseEntity<?> getProductById(@PathVariable Long id) {
         try {
@@ -121,6 +126,7 @@ public class ProductController {
         }
     }
 
+    // ✅ Merchant: Update ONLY their own products
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<?> updateProduct(
@@ -138,11 +144,10 @@ public class ProductController {
             Product existing = productRepository.findById(id)
                     .orElseThrow(() -> new RuntimeException("Product not found"));
 
-            // ✅ Allow any merchant to update any product
-            // Remove the merchant check so any merchant can edit
-            // if (!existing.getMerchantId().equals(user.getId())) {
-            //     return ResponseEntity.status(403).body("You can only update your own products");
-            // }
+            // ✅ Security: Check if this product belongs to this merchant
+            if (!existing.getMerchantId().equals(user.getId())) {
+                return ResponseEntity.status(403).body("{\"error\": \"You can only update your own products\"}");
+            }
 
             existing.setName(name);
             existing.setDescription(description);
@@ -177,11 +182,25 @@ public class ProductController {
         }
     }
 
+    // ✅ Merchant: Delete ONLY their own products
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('MERCHANT')")
-    public String deleteProduct(@PathVariable Long id) {
-        service.deleteProduct(id);
-        return "Deleted";
+    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
+        try {
+            User user = getLoggedInUser();
+            Product product = productRepository.findById(id)
+                    .orElseThrow(() -> new RuntimeException("Product not found"));
+
+            // ✅ Security: Check if this product belongs to this merchant
+            if (!product.getMerchantId().equals(user.getId())) {
+                return ResponseEntity.status(403).body("{\"error\": \"You can only delete your own products\"}");
+            }
+
+            service.deleteProduct(id);
+            return ResponseEntity.ok("{\"message\": \"Product deleted successfully\"}");
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("{\"error\": \"" + e.getMessage() + "\"}");
+        }
     }
 
     private User getLoggedInUser() {

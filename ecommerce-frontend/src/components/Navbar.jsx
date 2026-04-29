@@ -8,7 +8,7 @@ import NotificationService from "../services/NotificationService";
 // ShopEase Logo SVG
 function Logo() {
   return (
-    <Link to="/" className="flex items-center gap-2.5 group">
+    <Link to="/" className="flex items-center gap-2">
       <div className="relative">
         <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-lg group-hover:shadow-[0_0_20px_rgba(192,68,232,0.5)] transition-all duration-300">
           {/* S bag icon */}
@@ -117,20 +117,30 @@ export default function Navbar() {
             <Logo />
 
             {/* Desktop Nav */}
-            <div className="hidden md:flex items-center gap-1">
-              <NavLink to="/">Home</NavLink>
-              <NavLink to="/products">Products</NavLink>
-              {user?.role === "USER" && (
-                <>
-                  <NavLink to="/cart" icon="🛒">Cart</NavLink>
-                  <NavLink to="/wishlist" icon="♡">Wishlist</NavLink>
-                  <NavLink to="/orders">Orders</NavLink>
-                </>
-              )}
-              {user?.role === "MERCHANT" && (
-                <NavLink to="/merchant">Dashboard</NavLink>
-              )}
-            </div>
+            {/* In the desktop nav section, modify: */}
+<div className="hidden md:flex items-center gap-1">
+  {/* Home is visible to everyone */}
+  <NavLink to="/">Home</NavLink>
+  
+  {/* Products and customer links - ONLY for non-merchants */}
+  {user?.role !== "MERCHANT" && (
+    <>
+      <NavLink to="/products">Products</NavLink>
+      {user?.role === "USER" && (
+        <>
+          <NavLink to="/cart" icon="🛒">Cart</NavLink>
+          <NavLink to="/wishlist" icon="♡">Wishlist</NavLink>
+          <NavLink to="/orders">Orders</NavLink>
+        </>
+      )}
+    </>
+  )}
+  
+  {/* Merchant Dashboard - ONLY for merchants */}
+  {user?.role === "MERCHANT" && (
+    <NavLink to="/merchant">Dashboard</NavLink>
+  )}
+</div>
 
             {/* Right Section */}
             <div className="hidden md:flex items-center gap-2">

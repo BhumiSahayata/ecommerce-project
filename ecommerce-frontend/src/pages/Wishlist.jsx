@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
 import toast from "react-hot-toast";
+import { getImageUrl } from "../utils/imageUtils";
 
 export default function Wishlist() {
   const [wishlist, setWishlist] = useState([]);
@@ -20,8 +21,9 @@ export default function Wishlist() {
         try {
           const p = await API.get(`/products/${item.productId}`);
           if (p.data) {
-            if (p.data.imageUrl && !p.data.imageUrl.startsWith('http')) {
-              p.data.fullImageUrl = `http://localhost:8080${p.data.imageUrl}`;
+            // Fix image URL using getImageUrl
+            if (p.data.imageUrl) {
+              p.data.fullImageUrl = getImageUrl(p.data.imageUrl);
             } else {
               p.data.fullImageUrl = p.data.imageUrl;
             }
@@ -109,7 +111,6 @@ export default function Wishlist() {
             const imageUrl = product.fullImageUrl || product.imageUrl;
             return (
               <div key={item.id} className="bg-white rounded-2xl border border-stone-100 overflow-hidden hover:border-brand-200 hover:shadow-md transition-all group flex flex-col">
-                {/* Product Image - Clickable */}
                 <Link to={`/product/${item.productId}`} className="block relative aspect-square bg-stone-100 overflow-hidden">
                   {imageUrl ? (
                     <img 
@@ -143,23 +144,20 @@ export default function Wishlist() {
                   </button>
                 </Link>
                 
-                {/* Product Details - Clickable */}
-                <div className="p-4 flex flex-col flex-1">
-                  <Link to={`/product/${item.productId}`}>
-                    <h3 className="font-semibold text-stone-900 text-sm line-clamp-2 mb-1 hover:text-brand-600 transition-colors">
-                      {product.name}
-                    </h3>
-                  </Link>
-                  {product.category && <p className="text-xs text-stone-400 mb-2">{product.category}</p>}
-                  <div className="mt-auto flex items-center justify-between">
-                    <span className="font-display font-bold text-stone-900">₹{product.price?.toLocaleString()}</span>
-                    <button
-                      onClick={() => addToCart(item.productId)}
-                      className="text-xs bg-brand-500 text-white px-3 py-1.5 rounded-lg hover:bg-brand-600 transition-colors font-medium"
-                    >
-                      Add to Cart
-                    </button>
-                  </div>
+                <Link to={`/product/${item.productId}`} className="p-4 flex flex-col flex-1">
+                  <h3 className="font-semibold text-stone-900 text-sm line-clamp-2 mb-1 hover:text-brand-600 transition-colors">
+                    {product.name}
+                  </h3>
+                </Link>
+                {product.category && <p className="text-xs text-stone-400 mb-2 px-4">{product.category}</p>}
+                <div className="p-4 pt-0 mt-auto flex items-center justify-between">
+                  <span className="font-display font-bold text-stone-900">₹{product.price?.toLocaleString()}</span>
+                  <button
+                    onClick={() => addToCart(item.productId)}
+                    className="text-xs bg-brand-500 text-white px-3 py-1.5 rounded-lg hover:bg-brand-600 transition-colors font-medium"
+                  >
+                    Add to Cart
+                  </button>
                 </div>
               </div>
             );

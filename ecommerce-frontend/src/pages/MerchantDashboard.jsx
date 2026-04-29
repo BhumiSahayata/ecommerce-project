@@ -2,73 +2,116 @@ import { useEffect, useState } from "react";
 import API from "../api/axios";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate, useLocation } from "react-router-dom";
+import { getImageUrl } from "../utils/imageUtils";
 
-// ✅ UPDATED: Added stockQuantity to EMPTY_FORM
 const EMPTY_FORM = { 
-  name: "", 
-  description: "", 
-  price: "", 
-  category: "", 
-  imageFile: null, 
-  rating: "",
-  stockQuantity: ""  // ✅ ADD THIS
+  name: "", description: "", price: "", category: "", imageFile: null, rating: "", stockQuantity: ""
 };
 
 const STATUS_OPTIONS = ["PLACED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"];
 const STATUS_STYLES = {
-  PLACED:    "bg-blue-100 text-blue-700",
-  PACKED:    "bg-amber-100 text-amber-700",
-  SHIPPED:   "bg-violet-100 text-violet-700",
+  PLACED: "bg-blue-100 text-blue-700",
+  PACKED: "bg-amber-100 text-amber-700",
+  SHIPPED: "bg-violet-100 text-violet-700",
   DELIVERED: "bg-green-100 text-green-700",
   CANCELLED: "bg-red-100 text-red-700",
 };
 
 export default function MerchantDashboard() {
   const { user } = useAuth();
-  const [tab, setTab] = useState("products");
+  const navigate = useNavigate();
+  const location = useLocation();
+  
+  const [activeTab, setActiveTab] = useState(() => {
+    const params = new URLSearchParams(location.search);
+    const tabFromUrl = params.get("tab");
+    const validTabs = ["dashboard", "add-product", "products", "orders", "feedback"];
+    return validTabs.includes(tabFromUrl) ? tabFromUrl : "dashboard";
+  });
+  
   const [products, setProducts] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [reviews, setReviews] = useState([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [stats, setStats] = useState({
+    totalOrders: 0,
+    totalRevenue: 0,
+    totalProducts: 0,
+    lowStockProducts: 0,
+    pendingOrders: 0,
+    averageRating: 0
+  });
   const [form, setForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [allProducts, setAllProducts] = useState({});
-  
-  // ✅ Product Suggestions State
   const [productSuggestions, setProductSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId);
+    setMobileMenuOpen(false);
+    navigate(`/merchant?tab=${tabId}`, { replace: true });
+  };
 
   const fetchProducts = async () => {
     try {
       const res = await API.get("/products/my");
       setProducts(res.data);
-      const map = {};
-      res.data.forEach(p => { map[p.id] = p; });
-      setAllProducts(map);
-    } catch { toast.error("Failed to load products"); }
+      return res.data;
+    } catch { toast.error("Failed to load products"); return []; }
   };
 
   const fetchOrders = async () => {
     try {
       const res = await API.get("/orders/merchant");
       setOrders(res.data);
-    } catch {
-      setOrders([]);
-    }
+      return res.data;
+    } catch { return []; }
+  };
+
+  const fetchReviews = async () => {
+    try {
+      const res = await API.get("/reviews/merchant");
+      setReviews(res.data);
+      return res.data;
+    } catch { return []; }
+  };
+
+  const calculateStats = async () => {
+    const productsData = await fetchProducts();
+    const ordersData = await fetchOrders();
+    const reviewsData = await fetchReviews();
+    
+    const totalRevenue = ordersData.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
+    const pendingOrders = ordersData.filter(o => 
+      o.items?.some(item => item.status !== "DELIVERED" && item.status !== "CANCELLED")
+    ).length;
+    const lowStock = productsData.filter(p => p.stockQuantity > 0 && p.stockQuantity <= 10).length;
+    const avgRating = reviewsData.length > 0 
+      ? (reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length).toFixed(1)
+      : 0;
+    
+    setStats({
+      totalOrders: ordersData.length,
+      totalRevenue,
+      totalProducts: productsData.length,
+      lowStockProducts: lowStock,
+      pendingOrders,
+      averageRating: avgRating
+    });
   };
 
   useEffect(() => {
-    fetchProducts();
-    fetchOrders();
+    calculateStats();
   }, []);
 
-  // ✅ Product Suggestions Function
   const fetchProductSuggestions = async (searchTerm) => {
     if (!searchTerm || searchTerm.length < 2) {
       setProductSuggestions([]);
       return;
     }
-    
     try {
       const res = await API.get("/products/all");
       const suggestions = res.data
@@ -76,17 +119,12 @@ export default function MerchantDashboard() {
         .slice(0, 5);
       setProductSuggestions(suggestions);
       setShowSuggestions(suggestions.length > 0);
-    } catch (err) {
-      console.error("Error fetching suggestions:", err);
-    }
+    } catch (err) { console.error("Error fetching suggestions:", err); }
   };
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      console.log("Image selected:", file.name, "Size:", file.size);
-      setForm({ ...form, imageFile: file });
-    }
+    if (file) setForm({ ...form, imageFile: file });
   };
 
   const handleSubmit = async () => {
@@ -94,9 +132,7 @@ export default function MerchantDashboard() {
       toast.error("Name and price required");
       return;
     }
-
     setLoading(true);
-
     try {
       const data = new FormData();
       data.append("name", form.name);
@@ -105,433 +141,332 @@ export default function MerchantDashboard() {
       data.append("category", form.category || "");
       data.append("rating", form.rating || 0);
       data.append("stockQuantity", form.stockQuantity || 0);
+      if (form.imageFile) data.append("image", form.imageFile);
 
-      if (form.imageFile) {
-        console.log("Uploading image:", form.imageFile.name);
-        data.append("image", form.imageFile);
-      } else {
-        console.log("No image selected");
-      }
-
-      let response;
       if (editId) {
-        response = await API.put(`/products/${editId}`, data, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        await API.put(`/products/${editId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
         toast.success("Product updated!");
       } else {
-        response = await API.post("/products/add", data, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
+        await API.post("/products/add", data, { headers: { 'Content-Type': 'multipart/form-data' } });
         toast.success("Product added!");
       }
-
-      console.log("Product saved:", response.data);
-      
       setForm(EMPTY_FORM);
       setEditId(null);
       setShowForm(false);
-      fetchProducts();
-      
+      calculateStats();
+      handleTabChange("products");
     } catch (err) {
-      console.error("Error:", err);
-      const errorMsg = err.response?.data?.error || err.response?.data?.message || "Error saving product";
-      toast.error(errorMsg);
-    }
-
-    setLoading(false);
+      toast.error(err.response?.data?.error || "Error saving product");
+    } finally { setLoading(false); }
   };
 
   const handleEdit = (product) => {
-  setForm({
-    name: product.name || "",
-    description: product.description || "",
-    price: product.price?.toString() || "",
-    category: product.category || "",
-    rating: product.rating?.toString() || "",
-    stockQuantity: product.stockQuantity?.toString() || "",
-    imageFile: null,
-  });
-  setEditId(product.id);
-  setShowForm(true);
-  window.scrollTo({ top: 0, behavior: "smooth" });
-};
-
-const handleDelete = async (id) => {
-  if (!window.confirm("Delete this product?")) return;
-  try {
-    await API.delete(`/products/${id}`);
-    toast.success("Product deleted");
-    fetchProducts();
-  } catch { toast.error("Failed to delete"); }
-};
-
-  const updateOrderStatus = async (orderId, status) => {
-    try {
-      await API.put(`/orders/${orderId}/status?status=${status}`);
-      toast.success("Order status updated!");
-      fetchOrders();
-    } catch { toast.error("Failed to update order status"); }
+    setForm({
+      name: product.name || "",
+      description: product.description || "",
+      price: product.price?.toString() || "",
+      category: product.category || "",
+      rating: product.rating?.toString() || "",
+      stockQuantity: product.stockQuantity?.toString() || "0",
+      imageFile: null,
+    });
+    setEditId(product.id);
+    setShowForm(true);
+    handleTabChange("add-product");
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this product?")) return;
+    try {
+      await API.delete(`/products/${id}`);
+      toast.success("Product deleted");
+      calculateStats();
+    } catch { toast.error("Failed to delete"); }
+  };
+
+  const updateOrderItemStatus = async (orderItemId, status) => {
+    try {
+      await API.put(`/orders/item/${orderItemId}/status?status=${status}`);
+      toast.success("Order status updated!");
+      calculateStats();
+    } catch { toast.error("Failed to update status"); }
+  };
+
+  const menuItems = [
+    { id: "dashboard", label: "Dashboard", icon: "📊", description: "Overview" },
+    { id: "add-product", label: "Add Product", icon: "➕", description: "Add new product" },
+    { id: "products", label: "Products", icon: "📦", description: "Manage products" },
+    { id: "orders", label: "Orders", icon: "🛒", description: "Customer orders" },
+    { id: "feedback", label: "Reviews", icon: "⭐", description: "Customer reviews" },
+  ];
+
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      {/* Header */}
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-4xl font-bold text-stone-900">Merchant Dashboard</h1>
-          <p className="text-stone-500 mt-1">Welcome back, {user?.name}</p>
-        </div>
-        <div className="flex gap-3">
-          <div className="bg-white border border-stone-200 rounded-xl px-4 py-3 text-center">
-            <p className="font-display font-bold text-2xl text-stone-900">{products.length}</p>
-            <p className="text-xs text-stone-400">Products</p>
-          </div>
-        </div>
-      </div>
+    <div className="flex flex-col md:flex-row bg-stone-50 min-h-screen">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+        className="md:hidden fixed bottom-4 right-4 z-50 w-12 h-12 rounded-full bg-brand-500 text-white shadow-lg flex items-center justify-center"
+      >
+        <span className="text-xl">{mobileMenuOpen ? "✕" : "☰"}</span>
+      </button>
 
-      {/* Tabs */}
-      <div className="flex gap-2 mb-6 border-b border-stone-200">
-        {["products", "orders"].map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`pb-3 px-4 text-sm font-semibold capitalize border-b-2 transition-colors -mb-px ${
-              tab === t ? "border-brand-500 text-brand-600" : "border-transparent text-stone-500 hover:text-stone-700"
-            }`}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* PRODUCTS TAB */}
-      {tab === "products" && (
-        <div>
-          <div className="mb-6">
-            <button
-              onClick={() => { setShowForm(!showForm); setForm(EMPTY_FORM); setEditId(null); setProductSuggestions([]); setShowSuggestions(false); }}
-              className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d={showForm ? "M6 18L18 6M6 6l12 12" : "M12 4v16m8-8H4"} />
+      {/* Sidebar */}
+      <aside className={`${mobileMenuOpen ? "fixed inset-0 z-40 w-64" : "hidden md:block"} md:relative md:w-60 bg-white border-r border-stone-200 h-full overflow-y-auto`}>
+        <div className="p-4 border-b border-stone-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
               </svg>
-              {showForm ? "Cancel" : "Add New Product"}
+            </div>
+            <div>
+              <h2 className="font-display font-bold text-stone-800 text-sm">ShopEase</h2>
+              <p className="text-[10px] text-stone-400">Merchant Panel</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-3 border-b border-stone-100 bg-stone-50/30">
+          <div className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-full bg-brand-500 flex items-center justify-center">
+              <span className="text-white text-sm font-bold">{user?.name?.charAt(0)?.toUpperCase()}</span>
+            </div>
+            <div>
+              <h3 className="font-semibold text-stone-800 text-sm">{user?.name}</h3>
+              <p className="text-[10px] text-stone-400 truncate max-w-[120px]">{user?.email}</p>
+              <span className="inline-block text-[9px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full mt-0.5">Merchant</span>
+            </div>
+          </div>
+        </div>
+
+        <nav className="p-2 space-y-0.5">
+          {menuItems.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleTabChange(item.id)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-left ${
+                activeTab === item.id
+                  ? "bg-brand-50 text-brand-600 border-l-3 border-brand-500"
+                  : "text-stone-600 hover:bg-stone-100"
+              }`}
+            >
+              <span className="text-lg">{item.icon}</span>
+              <div className="flex-1">
+                <p className="text-xs font-medium">{item.label}</p>
+                <p className="text-[9px] text-stone-400">{item.description}</p>
+              </div>
             </button>
+          ))}
+        </nav>
+
+        <div className="p-3 border-t border-stone-100 mt-2">
+          <div className="bg-stone-50 rounded-lg p-2">
+            <p className="text-[9px] text-stone-500 mb-1">Quick Stats</p>
+            <div className="space-y-0.5 text-[10px]">
+              <div className="flex justify-between"><span className="text-stone-600">Products</span><span className="font-semibold">{stats.totalProducts}</span></div>
+              <div className="flex justify-between"><span className="text-stone-600">Orders</span><span className="font-semibold">{stats.totalOrders}</span></div>
+              <div className="flex justify-between"><span className="text-stone-600">Revenue</span><span className="font-semibold text-green-600">₹{stats.totalRevenue.toLocaleString()}</span></div>
+            </div>
           </div>
+        </div>
+      </aside>
 
-          {showForm && (
-            <div className="bg-white border border-stone-200 rounded-2xl p-6 mb-6 animate-slide-up">
-              <h2 className="font-display font-bold text-stone-900 text-xl mb-5">
-                {editId ? "Edit Product" : "Add New Product"}
-              </h2>
-              <div className="grid sm:grid-cols-2 gap-4">
-                
-                {/* ✅ Product Name with Suggestions */}
-                <div className="sm:col-span-2 relative">
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Product Name *</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Nike Air Max"
-                    value={form.name}
-                    onChange={(e) => {
-                      setForm({ ...form, name: e.target.value });
-                      fetchProductSuggestions(e.target.value);
-                    }}
-                    onFocus={() => form.name && fetchProductSuggestions(form.name)}
-                    onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm"
-                  />
-                  
-                  {/* ✅ Suggestions Dropdown */}
-                  {showSuggestions && productSuggestions.length > 0 && (
-                    <div className="absolute z-10 w-full bg-white border border-stone-200 rounded-xl mt-1 shadow-lg max-h-60 overflow-auto">
-                      <div className="px-3 py-2 text-xs text-stone-500 border-b border-stone-100 bg-stone-50">
-                        💡 Similar products ({productSuggestions.length})
-                      </div>
-                      {productSuggestions.map(suggestion => (
-                        <div
-                          key={suggestion.id}
-                          className="px-3 py-2 hover:bg-stone-50 cursor-pointer flex items-center justify-between transition-colors"
-                          onClick={() => {
-                            setForm({ 
-                              ...form, 
-                              name: suggestion.name,
-                              category: suggestion.category || form.category,
-                              price: suggestion.price?.toString() || form.price,
-                              description: suggestion.description || form.description
-                            });
-                            setShowSuggestions(false);
-                            toast.success(`Filled from: ${suggestion.name}`);
-                          }}
-                        >
-                          <div>
-                            <div className="text-sm font-medium text-stone-800">{suggestion.name}</div>
-                            <div className="text-xs text-stone-400">{suggestion.category || "No category"}</div>
-                          </div>
-                          <div className="text-sm font-bold text-stone-700">₹{suggestion.price?.toLocaleString()}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Price (₹) *</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 2999"
-                    value={form.price}
-                    onChange={(e) => setForm({ ...form, price: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Category</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Shoes, Electronics"
-                    value={form.category}
-                    onChange={(e) => setForm({ ...form, category: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Rating (0-5)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    placeholder="e.g. 4.5"
-                    value={form.rating}
-                    onChange={(e) => setForm({ ...form, rating: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm"
-                  />
-                </div>
-                
-                {/* Stock Quantity Field */}
-                <div>
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Stock Quantity *</label>
-                  <input
-                    type="number"
-                    placeholder="e.g. 100"
-                    value={form.stockQuantity || ""}
-                    onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm"
-                  />
-                </div>
-                
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium mb-1.5">Product Image</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageSelect}
-                    className="w-full"
-                  />
-                  {form.imageFile && (
-                    <p className="text-xs text-green-600 mt-1">
-                      ✅ Selected: {form.imageFile.name}
-                    </p>
-                  )}
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-sm font-medium text-stone-700 mb-1.5">Description</label>
-                  <textarea
-                    rows="3"
-                    placeholder="Product description..."
-                    value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl border border-stone-200 focus:outline-none focus:ring-2 focus:ring-brand-400 text-sm"
-                  />
-                </div>
+      {/* Main Content */}
+      <main className="flex-1 p-4 md:p-6 w-full">
+        {/* Dashboard */}
+        {activeTab === "dashboard" && (
+          <div>
+            <div className="mb-6">
+              <h1 className="font-display text-2xl font-bold text-stone-900">Dashboard</h1>
+              <p className="text-stone-500 text-sm">Welcome back, {user?.name}</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
+              <div onClick={() => handleTabChange("products")} className="bg-white rounded-xl border p-3 cursor-pointer hover:shadow-md">
+                <div className="flex justify-between items-center"><div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center"><span>📦</span></div><span className="text-xl font-bold">{stats.totalProducts}</span></div>
+                <p className="text-xs mt-1">Products</p>
               </div>
-
-              <div className="mt-5 flex gap-3">
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading}
-                  className="bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white font-semibold px-6 py-2.5 rounded-xl transition-colors flex items-center gap-2"
-                >
-                  {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : null}
-                  {editId ? "Update Product" : "Add Product"}
-                </button>
-                <button
-                  onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setEditId(null); setProductSuggestions([]); setShowSuggestions(false); }}
-                  className="text-stone-500 hover:text-stone-700 font-medium px-4 py-2.5 rounded-xl hover:bg-stone-100 transition-colors"
-                >
-                  Cancel
-                </button>
+              <div onClick={() => handleTabChange("orders")} className="bg-white rounded-xl border p-3 cursor-pointer hover:shadow-md">
+                <div className="flex justify-between items-center"><div className="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center"><span>🛒</span></div><span className="text-xl font-bold">{stats.totalOrders}</span></div>
+                <p className="text-xs mt-1">Orders</p>
+              </div>
+              <div onClick={() => handleTabChange("orders")} className="bg-white rounded-xl border p-3 cursor-pointer hover:shadow-md">
+                <div className="flex justify-between items-center"><div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center"><span>⏳</span></div><span className="text-xl font-bold text-amber-600">{stats.pendingOrders}</span></div>
+                <p className="text-xs mt-1">Pending</p>
+              </div>
+              <div onClick={() => handleTabChange("products")} className="bg-white rounded-xl border p-3 cursor-pointer hover:shadow-md">
+                <div className="flex justify-between items-center"><div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center"><span>⚠️</span></div><span className="text-xl font-bold text-red-600">{stats.lowStockProducts}</span></div>
+                <p className="text-xs mt-1">Low Stock</p>
+              </div>
+              <div onClick={() => handleTabChange("feedback")} className="bg-white rounded-xl border p-3 cursor-pointer hover:shadow-md">
+                <div className="flex justify-between items-center"><div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center"><span>⭐</span></div><span className="text-xl font-bold">{stats.averageRating}</span></div>
+                <p className="text-xs mt-1">Rating</p>
               </div>
             </div>
-          )}
-
-          {/* Products Grid */}
-          {products.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-2xl border border-stone-100">
-              <p className="text-stone-500">No products yet. Add your first product!</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-white rounded-xl border p-4"><h3 className="font-semibold mb-2">Revenue</h3><div className="text-3xl font-bold text-brand-600">₹{stats.totalRevenue.toLocaleString()}</div></div>
+              <div className="bg-white rounded-xl border p-4"><h3 className="font-semibold mb-2">Quick Actions</h3><button onClick={() => handleTabChange("add-product")} className="w-full bg-brand-50 text-brand-600 p-2 rounded-lg text-sm">+ Add Product</button></div>
             </div>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {products.map(product => (
-                <div key={product.id} className="bg-white rounded-2xl border border-stone-100 overflow-hidden hover:border-stone-200 hover:shadow-md transition-all group">
-                  <div className="aspect-square bg-stone-100 overflow-hidden relative">
-                    {product.imageUrl ? (
-                      <img 
-                        src={`http://localhost:8080${product.imageUrl}`} 
-                        alt={product.name} 
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          console.log("Image failed to load:", product.imageUrl);
-                          e.target.style.display = 'none';
-                          if (e.target.parentElement) {
-                            const fallback = e.target.parentElement.querySelector('.fallback-image');
-                            if (fallback) fallback.style.display = 'flex';
-                          }
-                        }}
-                      />
-                    ) : null}
-                    <div className="fallback-image w-full h-full flex items-center justify-center" style={{ display: product.imageUrl ? 'none' : 'flex' }}>
-                      <svg className="w-10 h-10 text-stone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14" />
-                      </svg>
-                    </div>
-                    {product.category && (
-                      <span className="absolute top-2 left-2 bg-white/90 text-stone-600 text-xs font-medium px-2 py-0.5 rounded-full">
-                        {product.category}
-                      </span>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-semibold text-stone-900 text-sm line-clamp-1 mb-1">{product.name}</h3>
-                    <p className="text-xs text-stone-400 line-clamp-2 mb-3">{product.description}</p>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="font-display font-bold text-stone-900 text-lg">₹{product.price?.toLocaleString()}</span>
-                      {product.rating > 0 && (
-                        <span className="flex items-center gap-1 text-xs text-amber-500">
-                          <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                          {product.rating}
-                        </span>
-                      )}
-                    </div>
-                    
-                    {/* Stock Status Display */}
-                    <div className="mb-3">
-                      {product.stockQuantity > 0 ? (
-                        <span className="text-xs text-green-600">
-                          ✅ In Stock ({product.stockQuantity} left)
-                        </span>
-                      ) : (
-                        <span className="text-xs text-red-500">
-                          ❌ Out of Stock
-                        </span>
-                      )}
-                    </div>
-                    
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleEdit(product)}
-                        className="flex-1 text-xs bg-stone-100 hover:bg-stone-200 text-stone-700 font-medium py-2 rounded-lg transition-colors"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(product.id)}
-                        className="flex-1 text-xs bg-red-50 hover:bg-red-100 text-red-600 font-medium py-2 rounded-lg transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ORDERS TAB */}
-      {/* ORDERS TAB */}
-{tab === "orders" && (
-  <div>
-    {orders.length === 0 ? (
-      <div className="text-center py-20 bg-white rounded-2xl border border-stone-100">
-        <div className="w-16 h-16 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <svg className="w-8 h-8 text-stone-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-        </div>
-        <p className="text-stone-500">No orders yet for your products.</p>
-        <p className="text-stone-400 text-sm mt-1">
-          {products.length === 0 
-            ? "Start by adding products. Orders will appear here when customers purchase them."
-            : "Orders will appear here once customers purchase your products."}
-        </p>
-        {products.length === 0 && (
-          <button
-            onClick={() => setTab("products")}
-            className="mt-4 text-sm bg-brand-500 text-white px-4 py-2 rounded-lg hover:bg-brand-600 transition-colors"
-          >
-            Add Your First Product
-          </button>
+          </div>
         )}
-      </div>
-    ) : (
+
+        {activeTab === "add-product" && (
+  <div>
+    <h1 className="font-display text-2xl font-bold text-stone-900 mb-2">
+      {editId ? "Edit Product" : "Add New Product"}
+    </h1>
+    <p className="text-stone-500 text-sm mb-5">
+      {editId ? "Update your product details" : "Fill in the details to add a new product to your store"}
+    </p>
+    
+    <div className="bg-white rounded-xl border border-stone-200 p-5 max-w-2xl">
       <div className="space-y-4">
-        {orders.map(order => (
-          <div key={order.id} className="bg-white rounded-2xl border border-stone-100 overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-stone-50">
-              <div>
-                <span className="font-display font-bold text-stone-900">Order #{order.id}</span>
-                <p className="text-stone-400 text-xs mt-0.5">
-                  {order.orderDate ? new Date(order.orderDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : ""}
-                </p>
-                {/* Show customer name */}
-                <p className="text-xs text-stone-500 mt-1">
-                  Customer: {order.user?.name || "Guest"}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="font-display font-bold text-stone-900">₹{order.totalAmount?.toLocaleString()}</span>
-                <select
-                  value={order.status}
-                  onChange={(e) => updateOrderStatus(order.id, e.target.value)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-full border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-400 ${STATUS_STYLES[order.status] || "bg-stone-100 text-stone-700"}`}
-                >
-                  {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
-            </div>
-            <div className="px-5 py-3 space-y-2">
-              {/* Show shipping address if available */}
-              {order.shippingStreet && (
-                <div className="mb-2 pb-2 border-b border-stone-100">
-                  <p className="text-xs text-stone-500">
-                    📍 Delivery: {order.shippingStreet}, {order.shippingCity}, {order.shippingState} - {order.shippingPincode}
-                  </p>
-                </div>
-              )}
-              {(order.items || []).map(item => (
-                <div key={item.id} className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-3">
-                    <span className="text-stone-500">Product #{item.productId}</span>
-                    <span className="text-stone-700 font-medium">Qty: {item.quantity}</span>
-                  </div>
-                  <span className="text-stone-500">₹{item.price?.toLocaleString()} each</span>
-                </div>
-              ))}
-            </div>
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1.5">Product Name *</label>
+          <input 
+            type="text" 
+            placeholder="e.g. Nike Air Max, iPhone 15 Pro, Cotton T-Shirt" 
+            value={form.name} 
+            onChange={(e) => setForm({...form, name: e.target.value})} 
+            className="input-base w-full" 
+          />
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-1.5">Price (₹) *</label>
+            <input 
+              type="number" 
+              placeholder="e.g. 2999" 
+              value={form.price} 
+              onChange={(e) => setForm({...form, price: e.target.value})} 
+              className="input-base w-full" 
+            />
           </div>
-        ))}
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-1.5">Category</label>
+            <input 
+              type="text" 
+              placeholder="e.g. Electronics, Fashion, Home" 
+              value={form.category} 
+              onChange={(e) => setForm({...form, category: e.target.value})} 
+              className="input-base w-full" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-1.5">Rating (0-5)</label>
+            <input 
+              type="number" 
+              step="0.1" 
+              placeholder="e.g. 4.5" 
+              value={form.rating} 
+              onChange={(e) => setForm({...form, rating: e.target.value})} 
+              className="input-base w-full" 
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-stone-700 mb-1.5">Stock Quantity</label>
+            <input 
+              type="number" 
+              placeholder="e.g. 100" 
+              value={form.stockQuantity} 
+              onChange={(e) => setForm({...form, stockQuantity: e.target.value})} 
+              className="input-base w-full" 
+            />
+          </div>
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1.5">Product Image</label>
+          <input 
+            type="file" 
+            accept="image/*" 
+            onChange={handleImageSelect} 
+            className="w-full text-sm text-stone-500 file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-brand-50 file:text-brand-700 hover:file:bg-brand-100" 
+          />
+          {form.imageFile && <p className="text-xs text-green-600 mt-1">✅ Selected: {form.imageFile.name}</p>}
+          {editId && !form.imageFile && <p className="text-xs text-stone-400 mt-1">Current image will be kept if you don't upload a new one</p>}
+        </div>
+        
+        <div>
+          <label className="block text-sm font-medium text-stone-700 mb-1.5">Description</label>
+          <textarea 
+            rows="4" 
+            placeholder="Describe your product... Features, benefits, specifications, etc." 
+            value={form.description} 
+            onChange={(e) => setForm({...form, description: e.target.value})} 
+            className="input-base w-full resize-none" 
+          />
+        </div>
+        
+        <div className="flex gap-3 pt-3">
+          <button 
+            onClick={handleSubmit} 
+            disabled={loading} 
+            className="bg-brand-500 hover:bg-brand-600 text-white font-semibold px-6 py-2.5 rounded-lg transition-colors"
+          >
+            {loading ? "Saving..." : (editId ? "Update Product" : "Add Product")}
+          </button>
+          <button 
+            onClick={() => {setForm(EMPTY_FORM); setEditId(null); setShowForm(false);}} 
+            className="border border-stone-300 text-stone-600 hover:bg-stone-50 font-medium px-6 py-2.5 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
       </div>
-    )}
+    </div>
   </div>
 )}
+
+        {/* Products List */}
+        {activeTab === "products" && (
+          <div>
+            <div className="flex justify-between items-center mb-4"><h1 className="font-display text-2xl font-bold">Products ({products.length})</h1><button onClick={() => handleTabChange("add-product")} className="bg-brand-500 text-white px-4 py-2 rounded-lg text-sm">+ Add</button></div>
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+              {products.map(p => (
+                <div key={p.id} className="bg-white rounded-xl border overflow-hidden">
+                  <img src={getImageUrl(p.imageUrl) || "/placeholder.png"} alt={p.name} className="w-full h-32 object-cover" onError={(e) => e.target.src="/placeholder.png"} />
+                  <div className="p-2"><p className="font-semibold text-sm truncate">{p.name}</p><p className="text-brand-600 font-bold">₹{p.price}</p><div className="flex gap-1 mt-1"><button onClick={() => handleEdit(p)} className="text-xs bg-stone-100 px-2 py-1 rounded">Edit</button><button onClick={() => handleDelete(p.id)} className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded">Delete</button></div></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Orders */}
+        {activeTab === "orders" && (
+          <div>
+            <h1 className="font-display text-2xl font-bold mb-4">Orders ({orders.length})</h1>
+            <div className="space-y-3">
+              {orders.length === 0 ? <div className="text-center py-10 text-stone-400">No orders yet</div> : orders.map(order => (
+                <div key={order.id} className="bg-white rounded-xl border overflow-hidden">
+                  <div className="p-3 bg-stone-50 border-b flex justify-between flex-wrap"><div><span className="font-bold">Order #{order.id}</span><p className="text-xs text-stone-400">{order.user?.name} • {new Date(order.orderDate).toLocaleDateString()}</p></div><div><span className="font-bold">₹{order.totalAmount}</span></div></div>
+                  {order.shippingStreet && <div className="p-2 text-xs text-stone-500 border-b">📍 {order.shippingStreet}, {order.shippingCity}</div>}
+                  <div className="p-3 space-y-2">
+                    {(order.items || []).map(item => {
+                      const product = products.find(p => p.id === item.productId);
+                      return (<div key={item.id} className="flex justify-between items-center"><div className="flex items-center gap-2"><img src={getImageUrl(product?.imageUrl)} className="w-8 h-8 rounded object-cover" /><span className="text-sm">{product?.name || `Product #${item.productId}`}</span><span className="text-xs text-stone-400">x{item.quantity}</span></div><div className="flex items-center gap-2"><span className="text-sm font-semibold">₹{item.price * item.quantity}</span><select value={item.status} onChange={(e) => updateOrderItemStatus(item.id, e.target.value)} className="text-xs border rounded px-1 py-0.5"><option>PLACED</option><option>PACKED</option><option>SHIPPED</option><option>DELIVERED</option></select></div></div>);
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Feedback */}
+        {activeTab === "feedback" && (
+          <div>
+            <h1 className="font-display text-2xl font-bold mb-4">Customer Reviews</h1>
+            <div className="space-y-3">
+              {reviews.length === 0 ? <div className="text-center py-10 text-stone-400">No reviews yet</div> : reviews.map(r => (
+                <div key={r.id} className="bg-white rounded-xl border p-3"><div className="flex items-center gap-2"><div className="w-8 h-8 bg-brand-100 rounded-full flex items-center justify-center"><span>{r.userName?.charAt(0)}</span></div><div><p className="font-medium">{r.userName}</p><div className="flex items-center gap-1">{[...Array(5)].map((_,i) => <span key={i} className={i < r.rating ? "text-amber-400" : "text-stone-300"}>★</span>)}</div></div><div className="text-xs text-stone-400 ml-auto">{new Date(r.createdAt).toLocaleDateString()}</div></div><p className="text-sm mt-2">{r.comment}</p></div>
+              ))}
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

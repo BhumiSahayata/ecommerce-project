@@ -21,6 +21,9 @@ public class OrderService {
     private OrderRepository orderRepo;
 
     @Autowired
+    private OrderItemRepository orderItemRepo;  // ✅ Add this
+
+    @Autowired
     private CartService cartService;
 
     @Autowired
@@ -49,7 +52,6 @@ public class OrderService {
         Order order = new Order();
         order.setUser(user);
         order.setOrderDate(LocalDateTime.now());
-        order.setStatus("PLACED");
 
         order.setShippingStreet(address.getStreet());
         order.setShippingCity(address.getCity());
@@ -73,6 +75,7 @@ public class OrderService {
             item.setProductId(cartItem.getProductId());
             item.setQuantity(cartItem.getQuantity());
             item.setPrice(product.getPrice());
+            item.setStatus("PLACED");  // ✅ Each item starts with PLACED
             item.setOrder(order);
 
             total += product.getPrice() * cartItem.getQuantity();
@@ -94,27 +97,72 @@ public class OrderService {
         return orderRepo.findByUser(user);
     }
 
-    // ✅ FIXED: Merchants can see ALL orders (not just their products)
-    public List<Order> getOrdersForMerchant(Long merchantId) {
-        // Merchants can see all orders regardless of their products
-        return orderRepo.findAll();
+    // ✅ Merchant: Update status for a specific order item (product)
+    public OrderItem updateOrderItemStatus(Long orderItemId, String status, Long merchantId) {
+        OrderItem orderItem = orderItemRepo.findById(orderItemId)
+                .orElseThrow(() -> new RuntimeException("Order item not found"));
+
+        // Verify this product belongs to this merchant
+        Product product = productRepo.findById(orderItem.getProductId())
+                .orElseThrow(() -> new RuntimeException("Product not found"));
+
+        if (!product.getMerchantId().equals(merchantId)) {
+            throw new RuntimeException("You can only update status for your own products");
+        }
+
+        orderItem.setStatus(status);
+        OrderItem updatedItem = orderItemRepo.save(orderItem);
+
+        // Send email notification to user
+        Order order = orderRepo.findById(updatedItem.getOrder().getId()).orElse(null);
+        if (order != null) {
+            emailService.sendOrderStatusUpdate(
+                    order.getUser().getEmail(),
+                    order.getUser().getName(),
+                    order.getId(),
+                    product.getName() + ": " + status
+            );
+        }
+
+        return updatedItem;
     }
 
-    public Order updateOrderStatus(Long orderId, String status) {
-        Order order = orderRepo.findById(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
-        order.setStatus(status);
-        Order updatedOrder = orderRepo.save(order);
+    // Get orders for merchant (filtered by their products)
+    public List<Order> getOrdersForMerchant(Long merchantId) {
+        List<Product> myProducts = productRepo.findByMerchantId(merchantId);
+        if (myProducts.isEmpty()) return new ArrayList<>();
 
-        // Send email notification
-        emailService.sendOrderStatusUpdate(
-                order.getUser().getEmail(),
-                order.getUser().getName(),
-                order.getId(),
-                status
-        );
+        List<Long> myProductIds = myProducts.stream()
+                .map(Product::getId)
+                .collect(Collectors.toList());
 
-        return updatedOrder;
+        List<Order> allOrders = orderRepo.findAll();
+        List<Order> myOrders = new ArrayList<>();
+
+        for (Order order : allOrders) {
+            // Check if order contains merchant's products
+            List<OrderItem> myItems = order.getItems().stream()
+                    .filter(item -> myProductIds.contains(item.getProductId()))
+                    .collect(Collectors.toList());
+
+            if (!myItems.isEmpty()) {
+                Order filteredOrder = new Order();
+                filteredOrder.setId(order.getId());
+                filteredOrder.setUser(order.getUser());
+                filteredOrder.setTotalAmount(myItems.stream()
+                        .mapToDouble(item -> item.getPrice() * item.getQuantity())
+                        .sum());
+                filteredOrder.setOrderDate(order.getOrderDate());
+                filteredOrder.setShippingStreet(order.getShippingStreet());
+                filteredOrder.setShippingCity(order.getShippingCity());
+                filteredOrder.setShippingState(order.getShippingState());
+                filteredOrder.setShippingPincode(order.getShippingPincode());
+                filteredOrder.setShippingCountry(order.getShippingCountry());
+                filteredOrder.setItems(myItems);
+                myOrders.add(filteredOrder);
+            }
+        }
+        return myOrders;
     }
 
     public Order cancelOrder(Long orderId, User user) {
@@ -125,21 +173,21 @@ public class OrderService {
             throw new RuntimeException("You can only cancel your own orders");
         }
 
-        if (order.getStatus().equals("SHIPPED") || order.getStatus().equals("DELIVERED")) {
-            throw new RuntimeException("Order cannot be cancelled. Already " + order.getStatus().toLowerCase());
-        }
-
-        // Restore stock for cancelled order items
+        // Cancel all items that are not yet shipped/delivered
         for (OrderItem item : order.getItems()) {
-            Product product = productRepo.findById(item.getProductId()).orElse(null);
-            if (product != null) {
-                product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
-                product.setInStock(true);
-                productRepo.save(product);
+            if (!item.getStatus().equals("SHIPPED") && !item.getStatus().equals("DELIVERED")) {
+                item.setStatus("CANCELLED");
+
+                // Restore stock
+                Product product = productRepo.findById(item.getProductId()).orElse(null);
+                if (product != null) {
+                    product.setStockQuantity(product.getStockQuantity() + item.getQuantity());
+                    product.setInStock(true);
+                    productRepo.save(product);
+                }
             }
         }
 
-        order.setStatus("CANCELLED");
         return orderRepo.save(order);
     }
 }

@@ -14,10 +14,46 @@ import MerchantDashboard from "./pages/MerchantDashboard";
 import NotificationService from "./services/NotificationService";
 import { useEffect } from "react";
 
-function ProtectedRoute({ children, role }) {
+function ProtectedRoute({ children, role, redirectTo = "/login" }) {
+  const { user } = useAuth();
+  
+  if (!user) return <Navigate to={redirectTo} replace />;
+  
+  // If role is specified and user doesn't have it, redirect
+  if (role && user.role !== role) {
+    // Merchants trying to access user pages go to merchant dashboard
+    if (user.role === "MERCHANT" && (role === "USER" || role === "CUSTOMER")) {
+      return <Navigate to="/merchant" replace />;
+    }
+    // Users trying to access merchant pages go to products
+    if (user.role === "USER" && role === "MERCHANT") {
+      return <Navigate to="/products" replace />;
+    }
+    return <Navigate to="/" replace />;
+  }
+  
+  return children;
+}
+
+// Customer-only route (regular shoppers)
+function CustomerRoute({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (role && user.role !== role) return <Navigate to="/products" replace />;
+  // Merchants cannot access customer pages
+  if (user?.role === "MERCHANT") {
+    return <Navigate to="/merchant" replace />;
+  }
+  return children;
+}
+
+// Merchant-only route
+function MerchantRoute({ children }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/login" replace />;
+  // Regular users cannot access merchant pages
+  if (user?.role === "USER") {
+    return <Navigate to="/products" replace />;
+  }
   return children;
 }
 
@@ -48,16 +84,27 @@ function App() {
       <Navbar />
       <main className="flex-1">
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
-          <Route path="/register" element={!user ? <Register /> : <Navigate to="/" replace />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/product/:id" element={<ProductDetail />} />
-          <Route path="/cart" element={<ProtectedRoute role="USER"><Cart /></ProtectedRoute>} />
-          <Route path="/orders" element={<ProtectedRoute role="USER"><Orders /></ProtectedRoute>} />
-          <Route path="/wishlist" element={<ProtectedRoute role="USER"><Wishlist /></ProtectedRoute>} />
-          <Route path="/merchant" element={<ProtectedRoute role="MERCHANT"><MerchantDashboard /></ProtectedRoute>} />
-        </Routes>
+  {/* Root route - redirects based on user role */}
+  <Route path="/" element={
+    user ? (
+      user.role === "MERCHANT" ? 
+        <Navigate to="/merchant" replace /> : 
+        <Navigate to="/products" replace />
+    ) : 
+    <Home />
+  } />
+  
+  <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
+  <Route path="/register" element={!user ? <Register /> : <Navigate to="/" replace />} />
+  
+  {/* Other routes... */}
+  <Route path="/products" element={<Products />} />
+  <Route path="/product/:id" element={<ProductDetail />} />
+  <Route path="/cart" element={<ProtectedRoute role="USER"><Cart /></ProtectedRoute>} />
+  <Route path="/orders" element={<ProtectedRoute role="USER"><Orders /></ProtectedRoute>} />
+  <Route path="/wishlist" element={<ProtectedRoute role="USER"><Wishlist /></ProtectedRoute>} />
+  <Route path="/merchant" element={<ProtectedRoute role="MERCHANT"><MerchantDashboard /></ProtectedRoute>} />
+</Routes>
       </main>
       {showFooter && <Footer />}
     </div>

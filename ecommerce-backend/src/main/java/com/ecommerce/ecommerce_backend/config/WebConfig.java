@@ -11,7 +11,8 @@ public class WebConfig implements WebMvcConfigurer {
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
         // Use the EXACT absolute path
         registry.addResourceHandler("/uploads/**")
-                .addResourceLocations("file:D:/ecommerce-backend/uploads/")
+                .addResourceLocations("file:uploads/")
+                .addResourceLocations("file:D:\\ecommerce site\\ecommerce-backend\\uploads/")
                 .setCachePeriod(0);
 
         System.out.println("=== WebConfig Loaded ===");

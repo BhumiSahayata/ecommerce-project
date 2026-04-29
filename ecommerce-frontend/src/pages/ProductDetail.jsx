@@ -4,6 +4,8 @@ import { useAuth } from "../context/AuthContext";
 import API from "../api/axios";
 import toast from "react-hot-toast";
 import Reviews from "../components/Reviews";
+import { BACKEND_URL } from "../constants";
+import { getImageUrl } from "../utils/imageUtils";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -33,9 +35,9 @@ export default function ProductDetail() {
     try {
       const res = await API.get(`/products/${id}`);
       // Fix image URL - add base URL if needed
-      if (res.data.imageUrl && !res.data.imageUrl.startsWith('http')) {
-        res.data.imageUrl = `http://localhost:8080${res.data.imageUrl}`;
-      }
+     if (res.data.imageUrl) {
+  res.data.imageUrl = getImageUrl(res.data.imageUrl);
+}
       setProduct(res.data);
     } catch (err) {
       console.error("Error fetching product:", err);
@@ -104,7 +106,7 @@ export default function ProductDetail() {
         <div className="bg-stone-100 rounded-2xl overflow-hidden sticky top-24">
           {imageUrl ? (
             <img 
-              src={imageUrl} 
+              src={product.imageUrl || `${BACKEND_URL}/placeholder.png`}
               alt={product.name} 
               className="w-full h-auto object-cover"
               onError={(e) => {

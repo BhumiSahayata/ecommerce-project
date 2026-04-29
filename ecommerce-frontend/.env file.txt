@@ -1,0 +1,5 @@
+# Backend URL - Replace with your computer's IP address
+VITE_BACKEND_URL=http://10.60.21.68:8080
+
+# For local development (uncomment if testing locally)
+# VITE_BACKEND_URL=http://localhost:8080

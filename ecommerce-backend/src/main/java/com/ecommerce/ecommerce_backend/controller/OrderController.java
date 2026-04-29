@@ -2,6 +2,7 @@ package com.ecommerce.ecommerce_backend.controller;
 
 import com.ecommerce.ecommerce_backend.dto.AddressRequest;
 import com.ecommerce.ecommerce_backend.model.Order;
+import com.ecommerce.ecommerce_backend.model.OrderItem;
 import com.ecommerce.ecommerce_backend.model.User;
 import com.ecommerce.ecommerce_backend.repository.UserRepository;
 import com.ecommerce.ecommerce_backend.service.OrderService;
@@ -13,6 +14,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/orders")
@@ -24,7 +26,6 @@ public class OrderController {
     @Autowired
     private UserRepository userRepository;
 
-    // USER: place order from cart with address
     @PostMapping("/place")
     public ResponseEntity<?> placeOrder(@RequestBody AddressRequest address) {
         try {
@@ -32,20 +33,15 @@ public class OrderController {
             Order order = service.placeOrder(user, address);
             return ResponseEntity.ok(order);
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("{\"error\": \"" + e.getMessage() + "\"}");
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 
-    // USER: get own orders
     @GetMapping
     public List<Order> getOrders() {
         return service.getOrders(getLoggedInUser());
     }
 
-
-
-
-    // MERCHANT: get orders containing their products
     @GetMapping("/merchant")
     @PreAuthorize("hasRole('MERCHANT')")
     public List<Order> getMerchantOrders() {
@@ -53,13 +49,21 @@ public class OrderController {
         return service.getOrdersForMerchant(user.getId());
     }
 
-    // MERCHANT: update order status
-    @PutMapping("/{orderId}/status")
-    public Order updateStatus(@PathVariable Long orderId, @RequestParam String status) {
-        return service.updateOrderStatus(orderId, status);
+    // ✅ Update status for a specific order item
+    @PutMapping("/item/{orderItemId}/status")
+    @PreAuthorize("hasRole('MERCHANT')")
+    public ResponseEntity<?> updateOrderItemStatus(
+            @PathVariable Long orderItemId,
+            @RequestParam String status) {
+        try {
+            User user = getLoggedInUser();
+            OrderItem updatedItem = service.updateOrderItemStatus(orderItemId, status, user.getId());
+            return ResponseEntity.ok(updatedItem);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
     }
 
-    // Add this method to OrderController.java
     @PutMapping("/{orderId}/cancel")
     public ResponseEntity<?> cancelOrder(@PathVariable Long orderId) {
         try {
@@ -67,7 +71,7 @@ public class OrderController {
             Order order = service.cancelOrder(orderId, user);
             return ResponseEntity.ok(order);
         } catch (Exception e) {
-            return ResponseEntity.status(500).body("{\"error\": \"" + e.getMessage() + "\"}");
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }
 

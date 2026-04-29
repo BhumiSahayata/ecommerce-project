@@ -18,6 +18,9 @@ public class OrderItem {
 
     private double price;
 
+    // ✅ Each product in order has its own status
+    private String status = "PLACED";
+
     @ManyToOne
     @JoinColumn(name = "order_id")
     @JsonBackReference

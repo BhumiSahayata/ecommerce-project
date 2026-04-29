@@ -23,7 +23,8 @@ public class Order {
 
     private double totalAmount;
 
-    private String status;
+    // ❌ REMOVE this line - status is now per item
+    // private String status;
 
     private LocalDateTime orderDate;
 

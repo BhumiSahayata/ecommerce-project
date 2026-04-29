@@ -4,6 +4,8 @@ import API from "../api/axios";
 import toast from "react-hot-toast";
 import AddressAutocomplete from "../components/AddressAutocomplete";
 import NotificationService from "../services/NotificationService";
+import { BACKEND_URL } from "../constants";
+import { getImageUrl } from "../utils/imageUtils";
 
 export default function Cart() {
   const [cart, setCart] = useState(null);
@@ -32,8 +34,9 @@ export default function Cart() {
           try {
             const pRes = await API.get(`/products/${item.productId}`);
             if (pRes.data) {
-              if (pRes.data.imageUrl && !pRes.data.imageUrl.startsWith('http')) {
-                pRes.data.fullImageUrl = `http://localhost:8080${pRes.data.imageUrl}`;
+              // Fix image URL using getImageUrl
+              if (pRes.data.imageUrl) {
+                pRes.data.fullImageUrl = getImageUrl(pRes.data.imageUrl);
               } else {
                 pRes.data.fullImageUrl = pRes.data.imageUrl;
               }

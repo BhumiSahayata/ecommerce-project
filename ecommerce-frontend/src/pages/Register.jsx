@@ -14,25 +14,33 @@ export default function Register() {
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
-  const handleRegister = async () => {
-    if (!form.name || !form.email || !form.password) { toast.error("Please fill all fields"); return; }
-    if (form.password.length < 6) { toast.error("Password must be at least 6 characters"); return; }
-    setLoading(true);
-    try {
-      await API.post("/auth/register", form);
-      const loginRes = await API.post("/auth/login", { email: form.email, password: form.password });
-      const d = loginRes.data;
-      if (d.token) {
-        login({ id: d.id, name: d.name, email: d.email, role: d.role }, d.token);
-        toast.success(`Welcome, ${d.name}! 🎉`);
-        navigate(d.role === "MERCHANT" ? "/merchant" : "/products");
+  // In Register.jsx, update the handleRegister function:
+
+const handleRegister = async () => {
+  if (!form.name || !form.email || !form.password) { toast.error("Please fill all fields"); return; }
+  if (form.password.length < 6) { toast.error("Password must be at least 6 characters"); return; }
+  setLoading(true);
+  try {
+    await API.post("/auth/register", form);
+    const loginRes = await API.post("/auth/login", { email: form.email, password: form.password });
+    const d = loginRes.data;
+    if (d.token) {
+      login({ id: d.id, name: d.name, email: d.email, role: d.role }, d.token);
+      toast.success(`Welcome, ${d.name}! 🎉`);
+      
+      // ✅ Redirect merchants to merchant dashboard
+      if (d.role === "MERCHANT") {
+        navigate("/merchant");
+      } else {
+        navigate("/products");
       }
-    } catch (err) {
-      toast.error(err.response?.data?.error || err.response?.data?.message || "Registration failed");
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (err) {
+    toast.error(err.response?.data?.error || err.response?.data?.message || "Registration failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div
