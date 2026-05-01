@@ -13,51 +13,63 @@ import java.util.Base64;
 @Service
 public class ImageKitService {
 
-    // ✅ Get your COMPLETE keys from ImageKit Dashboard
-    // Go to: https://imagekit.io/dashboard → Developer Options
-    private static final String PUBLIC_KEY = "public_bWdjRxQuoMIqt0tKK3WOlBoTwwA=";
-    private static final String PRIVATE_KEY = "private_rnkvr81huNfGgF5hhGzDp9L2GgU=";
-    private static final String IMAGEKIT_ID = "mplaafdnv";
+    private static final String PRIVATE_KEY = "private_1QffJIHHJKcbkAo5XEqXsDt/y/M=";
 
-    public String uploadImage(MultipartFile file, String fileName) throws Exception {
-        String auth = PUBLIC_KEY + ":" + PRIVATE_KEY;
-        String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
+    public String uploadImage(MultipartFile file, String fileName) {
+        try {
+            String url = "https://upload.imagekit.io/api/v1/files/upload";
 
-        String boundary = "Boundary-" + System.currentTimeMillis();
-        String url = "https://upload.imagekit.io/api/v1/files/upload";
+            // ✅ CREATE CONNECTION FIRST
+            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
 
-        HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
-        connection.setRequestMethod("POST");
-        connection.setRequestProperty("Authorization", "Basic " + encodedAuth);
-        connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
-        connection.setDoOutput(true);
+            connection.setRequestMethod("POST");
+            connection.setDoOutput(true);
 
-        try (OutputStream outputStream = connection.getOutputStream()) {
-            // Write file part
-            outputStream.write(("--" + boundary + "\r\n").getBytes());
-            outputStream.write(("Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"\r\n").getBytes());
-            outputStream.write(("Content-Type: " + file.getContentType() + "\r\n\r\n").getBytes());
-            outputStream.write(file.getBytes());
-            outputStream.write(("\r\n--" + boundary + "--\r\n").getBytes());
-            outputStream.flush();
-        }
+            // ✅ AUTH AFTER CONNECTION CREATED
+            String auth = PRIVATE_KEY + ":";
+            String encodedAuth = Base64.getEncoder().encodeToString(auth.getBytes());
+            connection.setRequestProperty("Authorization", "Basic " + encodedAuth);
 
-        int responseCode = connection.getResponseCode();
+            String boundary = "Boundary-" + System.currentTimeMillis();
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
 
-        if (responseCode == 200) {
-            ObjectMapper mapper = new ObjectMapper();
-            JsonNode responseJson = mapper.readTree(connection.getInputStream());
-            String imageUrl = responseJson.get("url").asText();
-            System.out.println("✅ ImageKit upload success: " + imageUrl);
-            return imageUrl;
-        } else {
-            // Read error response
-            String errorMsg = "";
-            try (java.util.Scanner scanner = new java.util.Scanner(connection.getErrorStream()).useDelimiter("\\A")) {
-                errorMsg = scanner.hasNext() ? scanner.next() : "";
+            try (OutputStream outputStream = connection.getOutputStream()) {
+
+                // fileName
+                outputStream.write(("--" + boundary + "\r\n").getBytes());
+                outputStream.write(("Content-Disposition: form-data; name=\"fileName\"\r\n\r\n").getBytes());
+                outputStream.write((fileName + "\r\n").getBytes());
+
+                // file
+                outputStream.write(("--" + boundary + "\r\n").getBytes());
+                outputStream.write(("Content-Disposition: form-data; name=\"file\"; filename=\"" + fileName + "\"\r\n").getBytes());
+                outputStream.write(("Content-Type: " + file.getContentType() + "\r\n\r\n").getBytes());
+                outputStream.write(file.getBytes());
+                outputStream.write("\r\n".getBytes());
+
+                outputStream.write(("--" + boundary + "--\r\n").getBytes());
+                outputStream.flush();
             }
-            System.err.println("❌ ImageKit upload failed: " + responseCode + " - " + errorMsg);
-            throw new RuntimeException("Upload failed: " + responseCode);
+
+            int responseCode = connection.getResponseCode();
+
+            if (responseCode == 200) {
+                ObjectMapper mapper = new ObjectMapper();
+                JsonNode responseJson = mapper.readTree(connection.getInputStream());
+
+                // ✅ THIS IS YOUR IMAGEKIT URL
+                String imageUrl = responseJson.get("url").asText();
+
+                System.out.println("Image uploaded: " + imageUrl); // debug
+
+                return imageUrl;
+
+            } else {
+                throw new RuntimeException("Upload failed: " + responseCode);
+            }
+
+        } catch (Exception e) {
+            throw new RuntimeException("Upload failed: " + e.getMessage());
         }
     }
 }

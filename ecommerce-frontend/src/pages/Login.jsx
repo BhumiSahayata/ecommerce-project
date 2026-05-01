@@ -16,26 +16,41 @@ export default function Login() {
   // In Login.jsx, update the handleLogin function:
 
 const handleLogin = async () => {
-  if (!email || !password) { toast.error("Please fill all fields"); return; }
+  if (!email || !password) {
+    toast.error("Please fill all fields");
+    return;
+  }
+
   setLoading(true);
+
   try {
     const res = await API.post("/auth/login", { email, password });
     const data = res.data;
-    if (data.token && data.id) {
-      login({ id: data.id, name: data.name, email: data.email, role: data.role }, data.token);
-      toast.success(`Welcome back, ${data.name}!`);
-      
-      // ✅ Redirect merchants to merchant dashboard
-      if (data.role === "MERCHANT") {
-        navigate("/merchant");
-      } else {
-        navigate("/products");
-      }
+
+    // ✅ FIX ROLE FORMAT
+    const role = data.role.replace("ROLE_", "");
+
+    login(
+      {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        role: role
+      },
+      data.token
+    );
+
+    toast.success(`Welcome ${data.name}`);
+
+    // ✅ REDIRECTION
+    if (role === "MERCHANT") {
+      navigate("/merchant");
     } else {
-      toast.error("Login failed");
+      navigate("/redirect");
     }
+
   } catch (err) {
-    toast.error(err.response?.data?.error || "Login failed");
+    toast.error("Login failed");
   } finally {
     setLoading(false);
   }
@@ -125,7 +140,7 @@ const handleLogin = async () => {
 
           <div className="grid grid-cols-2 gap-3">
             <a
-              href="http://localhost:8080/oauth2/authorization/google"
+              href="http://10.60.21.68:8080/oauth2/authorization/google"
               className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all border border-border text-secondary hover:border-brand"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -137,7 +152,7 @@ const handleLogin = async () => {
               Google
             </a>
             <a
-              href="http://localhost:8080/oauth2/authorization/facebook"
+              href="http://10.60.21.68:8080/oauth2/authorization/google"
               className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all border border-border text-secondary hover:border-brand"
             >
               <svg className="w-4 h-4 text-blue-500" fill="currentColor" viewBox="0 0 24 24">

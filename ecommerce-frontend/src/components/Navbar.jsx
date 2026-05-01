@@ -120,7 +120,9 @@ export default function Navbar() {
             {/* In the desktop nav section, modify: */}
 <div className="hidden md:flex items-center gap-1">
   {/* Home is visible to everyone */}
+  {user?.role !== "MERCHANT" && (
   <NavLink to="/">Home</NavLink>
+)}
   
   {/* Products and customer links - ONLY for non-merchants */}
   {user?.role !== "MERCHANT" && (

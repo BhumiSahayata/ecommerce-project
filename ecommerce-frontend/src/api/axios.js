@@ -3,7 +3,6 @@ import { BACKEND_URL } from "../constants";
 
 const API = axios.create({
   baseURL: BACKEND_URL,
-  withCredentials: true,
 });
 
 API.interceptors.request.use((req) => {
@@ -13,17 +12,5 @@ API.interceptors.request.use((req) => {
   }
   return req;
 });
-
-API.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
-    }
-    return Promise.reject(err);
-  }
-);
 
 export default API;

@@ -127,38 +127,49 @@ export default function MerchantDashboard() {
     if (file) setForm({ ...form, imageFile: file });
   };
 
-  const handleSubmit = async () => {
-    if (!form.name || !form.price) {
-      toast.error("Name and price required");
-      return;
-    }
-    setLoading(true);
-    try {
-      const data = new FormData();
-      data.append("name", form.name);
-      data.append("description", form.description || "");
-      data.append("price", form.price);
-      data.append("category", form.category || "");
-      data.append("rating", form.rating || 0);
-      data.append("stockQuantity", form.stockQuantity || 0);
-      if (form.imageFile) data.append("image", form.imageFile);
+ const handleSubmit = async () => {
+  if (!form.name || !form.price) {
+    toast.error("Name and price required");
+    return;
+  }
 
-      if (editId) {
-        await API.put(`/products/${editId}`, data, { headers: { 'Content-Type': 'multipart/form-data' } });
-        toast.success("Product updated!");
-      } else {
-        await API.post("/products/add", data, { headers: { 'Content-Type': 'multipart/form-data' } });
-        toast.success("Product added!");
-      }
-      setForm(EMPTY_FORM);
-      setEditId(null);
-      setShowForm(false);
-      calculateStats();
-      handleTabChange("products");
-    } catch (err) {
-      toast.error(err.response?.data?.error || "Error saving product");
-    } finally { setLoading(false); }
-  };
+  setLoading(true);
+
+  try {
+    const data = new FormData();
+
+    data.append("name", form.name);
+    data.append("description", form.description || "");
+    data.append("price", form.price);
+    data.append("category", form.category || "");
+    data.append("rating", form.rating || 0);
+    data.append("stockQuantity", form.stockQuantity || 0);
+
+    if (form.imageFile) {
+      data.append("image", form.imageFile);
+    }
+
+    if (editId) {
+      await API.put(`/products/${editId}`, data);
+      toast.success("Product updated!");
+    } else {
+      await API.post("/products/add", data);
+      toast.success("Product added!");
+    }
+
+    setForm(EMPTY_FORM);
+    setEditId(null);
+    setShowForm(false);
+    calculateStats();
+    handleTabChange("products");
+
+  } catch (err) {
+    console.error(err);
+    toast.error(err.response?.data || "Error saving product");
+  } finally {
+    setLoading(false);
+  }
+};
 
   const handleEdit = (product) => {
     setForm({

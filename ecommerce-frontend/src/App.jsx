@@ -84,26 +84,54 @@ function App() {
       <Navbar />
       <main className="flex-1">
         <Routes>
-  {/* Root route - redirects based on user role */}
-  <Route path="/" element={
+
+  {/* ✅ Home ALWAYS accessible */}
+  <Route path="/" element={<Home />} />
+
+  {/* ✅ Auth */}
+  <Route path="/login" element={!user ? <Login /> : <Navigate to="/redirect" replace />} />
+<Route path="/register" element={!user ? <Register /> : <Navigate to="/redirect" replace />} />
+  {/* ✅ ADD THIS HERE 👇 */}
+  <Route path="/redirect" element={
     user ? (
-      user.role === "MERCHANT" ? 
-        <Navigate to="/merchant" replace /> : 
-        <Navigate to="/products" replace />
-    ) : 
-    <Home />
+      user.role === "MERCHANT" 
+        ? <Navigate to="/merchant" replace />
+        : <Navigate to="/products" replace />
+    ) : (
+      <Navigate to="/login" replace />
+    )
   } />
-  
-  <Route path="/login" element={!user ? <Login /> : <Navigate to="/" replace />} />
-  <Route path="/register" element={!user ? <Register /> : <Navigate to="/" replace />} />
-  
-  {/* Other routes... */}
+
+  {/* ✅ Public */}
   <Route path="/products" element={<Products />} />
   <Route path="/product/:id" element={<ProductDetail />} />
-  <Route path="/cart" element={<ProtectedRoute role="USER"><Cart /></ProtectedRoute>} />
-  <Route path="/orders" element={<ProtectedRoute role="USER"><Orders /></ProtectedRoute>} />
-  <Route path="/wishlist" element={<ProtectedRoute role="USER"><Wishlist /></ProtectedRoute>} />
-  <Route path="/merchant" element={<ProtectedRoute role="MERCHANT"><MerchantDashboard /></ProtectedRoute>} />
+
+  {/* ✅ USER ONLY */}
+  <Route path="/cart" element={
+    <ProtectedRoute role="USER">
+      <Cart />
+    </ProtectedRoute>
+  } />
+
+  <Route path="/orders" element={
+    <ProtectedRoute role="USER">
+      <Orders />
+    </ProtectedRoute>
+  } />
+
+  <Route path="/wishlist" element={
+    <ProtectedRoute role="USER">
+      <Wishlist />
+    </ProtectedRoute>
+  } />
+
+  {/* ✅ MERCHANT ONLY */}
+  <Route path="/merchant" element={
+    <ProtectedRoute role="MERCHANT">
+      <MerchantDashboard />
+    </ProtectedRoute>
+  } />
+
 </Routes>
       </main>
       {showFooter && <Footer />}

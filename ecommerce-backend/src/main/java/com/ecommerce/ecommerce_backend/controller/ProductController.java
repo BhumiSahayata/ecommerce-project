@@ -19,6 +19,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/products")
+//@RequestMapping("/api")
 public class ProductController {
 
     @Autowired
@@ -33,7 +34,6 @@ public class ProductController {
     @Autowired
     private ImageKitService imageKitService;
 
-    // ✅ ADD PRODUCT
     @PostMapping("/add")
     @PreAuthorize("hasRole('MERCHANT')")
     public ResponseEntity<?> addProduct(
@@ -58,18 +58,18 @@ public class ProductController {
             product.setStockQuantity(stockQuantity);
             product.setInStock(stockQuantity > 0);
 
-            // ✅ Upload to ImageKit ONLY (no fallback)
+            // ✅ ImageKit upload
             if (image != null && !image.isEmpty()) {
                 String fileName = System.currentTimeMillis() + "_" + image.getOriginalFilename();
                 String imageUrl = imageKitService.uploadImage(image, fileName);
                 product.setImageUrl(imageUrl);
             }
 
-            Product savedProduct = productRepository.save(product);
-            return ResponseEntity.ok(savedProduct);
+            Product saved = productRepository.save(product);
+            return ResponseEntity.ok(saved);
 
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(); // 👈 important for debugging
             return ResponseEntity.status(500).body("Error: " + e.getMessage());
         }
     }
@@ -79,6 +79,8 @@ public class ProductController {
     public List<Product> getAllProducts() {
         return productRepository.findAll();
     }
+
+
 
     // ✅ GET MY PRODUCTS
     @GetMapping("/my")
