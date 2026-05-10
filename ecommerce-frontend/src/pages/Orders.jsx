@@ -175,7 +175,12 @@ export default function Orders() {
         {/* Product Image */}
         <div className="w-20 h-20 bg-[var(--surface)] rounded-xl overflow-hidden flex-shrink-0">
           {imageUrl ? (
-            <img src={imageUrl} alt={product?.name} className="w-full h-full object-cover" />
+           <img
+  src={getImageUrl(product.imageUrl)}
+  alt={product.name}
+  loading="lazy"
+  className="w-full h-full object-cover"
+/>
           ) : (
             <div className="w-full h-full flex items-center justify-center">
               <svg className="w-8 h-8 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">

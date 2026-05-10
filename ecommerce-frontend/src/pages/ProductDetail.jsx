@@ -110,7 +110,7 @@ export default function ProductDetail() {
               alt={product.name} 
               className="w-full h-auto object-cover"
               onError={(e) => {
-                console.log("Image failed to load:", imageUrl);
+
                 e.target.src = "https://via.placeholder.com/500?text=No+Image";
               }}
             />

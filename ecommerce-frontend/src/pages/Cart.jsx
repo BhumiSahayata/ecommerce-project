@@ -189,10 +189,11 @@ export default function Cart() {
                 {/* Product Image - Clickable */}
                 <Link to={`/product/${item.productId}`} className="block w-20 h-20 bg-stone-100 rounded-xl overflow-hidden flex-shrink-0">
                   {imageUrl ? (
-                    <img 
-                      src={imageUrl} 
-                      alt={product?.name || "Product"} 
-                      className="w-full h-full object-cover"
+                    <img
+  src={getImageUrl(product.imageUrl)}
+  alt={product.name}
+  loading="lazy"
+  className="w-full h-full object-cover"
                       onError={(e) => {
                         e.target.style.display = 'none';
                       }}

@@ -53,12 +53,12 @@ export default function ProductCard({ product, wishlistIds = [], onWishlistChang
         {/* Image */}
         <div className="relative overflow-hidden bg-stone-100 aspect-square">
           {imageUrl ? (
-            <img
-              src={imageUrl}
-              alt={product.name || "product"}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+           <img
+  src={getImageUrl(product.imageUrl)}
+  alt={product.name}
+  loading="lazy"
+  className="w-full h-full object-cover"
               onError={(e) => {
-                console.log("Image failed to load:", imageUrl);
                 e.target.style.display = 'none';
                 if (e.target.nextSibling) {
                   e.target.nextSibling.style.display = 'flex';

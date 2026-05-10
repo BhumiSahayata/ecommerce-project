@@ -2,15 +2,17 @@ import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
-import Home from "./pages/Home";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
-import Products from "./pages/Products";
-import ProductDetail from "./pages/ProductDetail";
-import Cart from "./pages/Cart";
-import Orders from "./pages/Orders";
-import Wishlist from "./pages/Wishlist";
-import MerchantDashboard from "./pages/MerchantDashboard";
+import { lazy, Suspense } from "react";
+
+const Home = lazy(() => import("./pages/Home"));
+const Login = lazy(() => import("./pages/Login"));
+const Register = lazy(() => import("./pages/Register"));
+const Products = lazy(() => import("./pages/Products"));
+const ProductDetail = lazy(() => import("./pages/ProductDetail"));
+const Cart = lazy(() => import("./pages/Cart"));
+const Orders = lazy(() => import("./pages/Orders"));
+const Wishlist = lazy(() => import("./pages/Wishlist"));
+const MerchantDashboard = lazy(() => import("./pages/MerchantDashboard"));
 import NotificationService from "./services/NotificationService";
 import { useEffect } from "react";
 
@@ -83,6 +85,13 @@ function App() {
     <div className="min-h-screen bg-page font-body flex flex-col">
       <Navbar />
       <main className="flex-1">
+        <Suspense
+  fallback={
+    <div className="min-h-screen flex items-center justify-center bg-page">
+      <div className="w-10 h-10 rounded-full border-4 border-brand-500 border-t-transparent animate-spin" />
+    </div>
+  }
+>
         <Routes>
 
   {/* ✅ Home ALWAYS accessible */}
@@ -133,6 +142,7 @@ function App() {
   } />
 
 </Routes>
+</Suspense>
       </main>
       {showFooter && <Footer />}
     </div>
