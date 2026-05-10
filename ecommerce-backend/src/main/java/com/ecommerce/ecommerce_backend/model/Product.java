@@ -20,7 +20,7 @@ public class Product {
 
     private String category;
 
-    @Column(name = "image_url", columnDefinition = "LONGTEXT")
+    @Column(name = "image_url", columnDefinition = "TEXT")
     private String imageUrl;
 
     private double rating;
