@@ -3,6 +3,8 @@ import { useAuth } from "./context/AuthContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import { lazy, Suspense } from "react";
+import Profile from "./pages/Profile";
+
 
 const Home = lazy(() => import("./pages/Home"));
 const Login = lazy(() => import("./pages/Login"));
@@ -121,6 +123,8 @@ function App() {
       <Cart />
     </ProtectedRoute>
   } />
+
+  <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
 
   <Route path="/orders" element={
     <ProtectedRoute role="USER">

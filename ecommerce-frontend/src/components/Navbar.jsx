@@ -189,14 +189,17 @@ export default function Navbar() {
                         <p className="text-sm font-medium text-primary truncate">{user.email}</p>
                       </div>
                       <button
-                        onClick={() => { setShowDropdown(false); setShowProfile(true); }}
-                        className="w-full text-left px-4 py-2.5 text-sm text-secondary hover:text-primary hover:bg-[var(--surface)] flex items-center gap-3 transition-colors"
-                      >
-                        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/>
-                        </svg>
-                        My Profile
-                      </button>
+  onClick={() => {
+    setShowDropdown(false);
+    navigate("/profile");
+  }}
+  className="w-full text-left px-4 py-2.5 text-sm text-secondary hover:text-primary hover:bg-[var(--surface)] flex items-center gap-3 transition-colors"
+>
+  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/>
+  </svg>
+  My Profile
+</button>
                       <button
                         onClick={handleLogout}
                         className="w-full text-left px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center gap-3 transition-colors rounded-b-2xl"
@@ -275,11 +278,14 @@ export default function Navbar() {
                     </div>
                   </div>
                   <button
-                    onClick={() => { setMenuOpen(false); setShowProfile(true); }}
-                    className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-secondary hover:text-primary hover:bg-[var(--surface)] transition-colors"
-                  >
-                    My Profile
-                  </button>
+  onClick={() => {
+    setMenuOpen(false);
+    navigate("/profile");
+  }}
+  className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-secondary hover:text-primary hover:bg-[var(--surface)] transition-colors"
+>
+  My Profile
+</button>
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-3 py-2.5 rounded-xl text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 transition-colors"

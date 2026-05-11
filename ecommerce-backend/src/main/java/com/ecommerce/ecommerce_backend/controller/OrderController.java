@@ -64,6 +64,25 @@ public class OrderController {
         }
     }
 
+    // ✅ ADD THIS MISSING ENDPOINT - Update MAIN ORDER status
+    @PutMapping("/{orderId}/status")
+    @PreAuthorize("hasRole('MERCHANT')")
+    public ResponseEntity<?> updateOrderStatus(
+            @PathVariable Long orderId,
+            @RequestParam String status) {
+        try {
+            User user = getLoggedInUser();
+            Order updatedOrder = service.updateOrderStatus(orderId, status, user.getId());
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "message", "Order status updated to " + status,
+                    "order", updatedOrder
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        }
+    }
+
     @PutMapping("/{orderId}/cancel")
     public ResponseEntity<?> cancelOrder(@PathVariable Long orderId) {
         try {
@@ -71,6 +90,7 @@ public class OrderController {
             Order order = service.cancelOrder(orderId, user);
             return ResponseEntity.ok(order);
         } catch (Exception e) {
+            e.printStackTrace();
             return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
         }
     }

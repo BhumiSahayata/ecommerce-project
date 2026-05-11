@@ -23,8 +23,9 @@ public class Order {
 
     private double totalAmount;
 
-    // ❌ REMOVE this line - status is now per item
-    // private String status;
+    // ✅ Single status field for the entire order
+    @Column(nullable = false)
+    private String status = "PLACED";
 
     private LocalDateTime orderDate;
 
