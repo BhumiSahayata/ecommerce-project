@@ -85,21 +85,45 @@ export default function Profile() {
   };
 
   const changePassword = async () => {
-    if (!formData.currentPassword) { toast.error("Current password required"); return; }
-    if (formData.newPassword !== formData.confirmPassword) { toast.error("Passwords don't match"); return; }
-    if (formData.newPassword.length < 6) { toast.error("Password must be at least 6 characters"); return; }
+    if (!formData.currentPassword) { 
+        toast.error("Current password required"); 
+        return; 
+    }
+    if (formData.newPassword !== formData.confirmPassword) { 
+        toast.error("Passwords don't match"); 
+        return; 
+    }
+    if (formData.newPassword.length < 6) { 
+        toast.error("Password must be at least 6 characters"); 
+        return; 
+    }
     setLoading(true);
     try {
-      await API.put("/auth/change-password", { 
-        currentPassword: formData.currentPassword, 
-        newPassword: formData.newPassword 
-      });
-      toast.success("Password changed successfully!");
-      setFormData({ ...formData, currentPassword: "", newPassword: "", confirmPassword: "" });
+        const response = await API.put("/auth/change-password", { 
+            currentPassword: formData.currentPassword, 
+            newPassword: formData.newPassword 
+        });
+        
+        console.log("Change password response:", response);
+        
+        if (response.status === 200) {
+            toast.success("Password changed successfully!");
+            setFormData({ 
+                ...formData, 
+                currentPassword: "", 
+                newPassword: "", 
+                confirmPassword: "" 
+            });
+        }
     } catch (err) {
-      toast.error(err.response?.data?.error || "Failed to change password");
-    } finally { setLoading(false); }
-  };
+        console.error("Password change error:", err);
+        console.error("Error response:", err.response);
+        const errorMsg = err.response?.data?.error || err.response?.data?.message || "Failed to change password";
+        toast.error(errorMsg);
+    } finally { 
+        setLoading(false); 
+    }
+};
 
   // ✅ Cancel Order Function - Refreshes orders after cancellation
   const cancelOrder = async (orderId) => {
