@@ -16,21 +16,22 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/auth")
-//@CrossOrigin(origins = "http://localhost:5173")
 public class UserController {
 
     @Autowired
     private UserService service;
 
     @Autowired
-    private UserRepository userRepository;  // ✅ ADD THIS
+    private UserRepository userRepository;
 
     @Autowired
-    private PasswordEncoder passwordEncoder;  // ✅ ADD THIS
+    private PasswordEncoder passwordEncoder;
 
+    // ================= REGISTER =================
     @PostMapping("/register")
     public LoginResponse register(@RequestBody User user) {
-        System.out.println("Received registration: " + user.getName() + ", " + user.getEmail() + ", Role: " + user.getRole());
+        System.out.println("Received registration: " + user.getName() + ", " + user.getEmail());
+
         User savedUser = service.register(user);
 
         return new LoginResponse(
@@ -42,48 +43,79 @@ public class UserController {
         );
     }
 
+    // ================= LOGIN =================
     @PostMapping("/login")
     public LoginResponse login(@RequestBody LoginRequest req) {
         return service.login(req.getEmail(), req.getPassword());
     }
 
-    // ✅ Profile Update Endpoint
+    // ================= PROFILE UPDATE =================
     @PutMapping("/profile")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> updateProfile(@RequestBody Map<String, String> updates, Authentication auth) {
+    public ResponseEntity<?> updateProfile(@RequestBody Map<String, String> updates,
+                                           Authentication auth) {
         try {
+
+            // ✅ FIX 1: Prevent null crash
             User user = userRepository.findByEmail(auth.getName());
+            if (user == null) {
+                return ResponseEntity.status(404)
+                        .body(Map.of("error", "User not found"));
+            }
+
             if (updates.containsKey("name")) {
                 user.setName(updates.get("name"));
             }
+
             if (updates.containsKey("email")) {
                 user.setEmail(updates.get("email"));
             }
+
             userRepository.save(user);
+
             return ResponseEntity.ok(Map.of("message", "Profile updated successfully"));
+
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Server error: " + e.getMessage()));
         }
     }
 
-    // ✅ Change Password Endpoint
+    // ================= CHANGE PASSWORD =================
     @PutMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> passwords, Authentication auth) {
+    public ResponseEntity<?> changePassword(@RequestBody Map<String, String> passwords,
+                                            Authentication auth) {
         try {
+
+            // ✅ FIX 2: Prevent null crash
             User user = userRepository.findByEmail(auth.getName());
+            if (user == null) {
+                return ResponseEntity.status(404)
+                        .body(Map.of("error", "User not found"));
+            }
+
             String currentPassword = passwords.get("currentPassword");
             String newPassword = passwords.get("newPassword");
 
+            if (currentPassword == null || newPassword == null) {
+                return ResponseEntity.status(400)
+                        .body(Map.of("error", "Passwords are required"));
+            }
+
             if (!passwordEncoder.matches(currentPassword, user.getPassword())) {
-                return ResponseEntity.status(400).body(Map.of("error", "Current password is incorrect"));
+                return ResponseEntity.status(400)
+                        .body(Map.of("error", "Current password is incorrect"));
             }
 
             user.setPassword(passwordEncoder.encode(newPassword));
             userRepository.save(user);
+
             return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+
         } catch (Exception e) {
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+            return ResponseEntity.status(500)
+                    .body(Map.of("error", "Server error: " + e.getMessage()));
         }
     }
 }
