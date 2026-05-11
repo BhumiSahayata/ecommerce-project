@@ -172,7 +172,25 @@ public class ProductController {
     }
 
     private User getLoggedInUser() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return userRepository.findByEmail(auth.getName());
+
+        Authentication auth = SecurityContextHolder
+                .getContext()
+                .getAuthentication();
+
+        if (auth == null || !auth.isAuthenticated()) {
+            throw new RuntimeException("User not authenticated");
+        }
+
+        String email = auth.getName();
+
+        System.out.println("Logged in email: " + email);
+
+        User user = userRepository.findByEmail(email);
+
+        if (user == null) {
+            throw new RuntimeException("User not found with email: " + email);
+        }
+
+        return user;
     }
 }

@@ -33,8 +33,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
         // Public endpoints
         if (path.startsWith("/auth") ||
-                path.startsWith("/uploads") ||
-                path.startsWith("/products")) {
+                path.startsWith("/uploads")) {
 
             filterChain.doFilter(request, response);
             return;
