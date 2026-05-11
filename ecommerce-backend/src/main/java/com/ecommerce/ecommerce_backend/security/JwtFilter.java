@@ -32,10 +32,10 @@ public class JwtFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
 
         // Public endpoints
-        if (path.startsWith("/auth") ||
+        if (path.startsWith("/api/auth") ||
                 path.startsWith("/uploads") ||
-                path.equals("/products/all") ||
-                path.matches("/products/\\d+") && request.getMethod().equals("GET")) {
+                path.startsWith("/api/products")) {
+
             filterChain.doFilter(request, response);
             return;
         }
