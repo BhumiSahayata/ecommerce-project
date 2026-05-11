@@ -36,6 +36,7 @@ public class JwtFilter extends OncePerRequestFilter {
             if (path.startsWith("/auth") ||
                     path.startsWith("/uploads") ||
                     path.startsWith("/products/all") ||
+                    path.startsWith("/products/my") ||
                     path.startsWith("/products/")) {
 
                 filterChain.doFilter(request, response);
@@ -68,7 +69,7 @@ public class JwtFilter extends OncePerRequestFilter {
                 return;
             }
 
-            // FIX: ensure ROLE_ prefix
+// FIX ROLE CLEANLY
             if (!role.startsWith("ROLE_")) {
                 role = "ROLE_" + role;
             }
