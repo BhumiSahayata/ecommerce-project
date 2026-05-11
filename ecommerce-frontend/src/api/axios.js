@@ -2,7 +2,7 @@ import axios from "axios";
 import { BACKEND_URL } from "../constants";
 
 const API = axios.create({
-  baseURL: BACKEND_URL,
+  baseURL: import.meta.env.VITE_API_URL,
 });
 
 API.interceptors.request.use((req) => {
