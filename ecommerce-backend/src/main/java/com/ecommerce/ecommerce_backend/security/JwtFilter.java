@@ -24,7 +24,7 @@ public class JwtFilter extends OncePerRequestFilter {
 
         try {
 
-            // Allow OPTIONS requests (CORS preflight)
+            // Allow OPTIONS (CORS)
             if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
                 filterChain.doFilter(request, response);
                 return;
@@ -32,17 +32,18 @@ public class JwtFilter extends OncePerRequestFilter {
 
             String path = request.getRequestURI();
 
-// Public endpoints (NO TOKEN REQUIRED)
-            if (path.startsWith("/auth") ||
-                    path.startsWith("/uploads") ||
-                    path.startsWith("/products/all") ||
-                    path.startsWith("/products/my") ||
-                    path.startsWith("/products/")) {
-
+            // ✅ PUBLIC APIs ONLY (NO TOKEN REQUIRED)
+            if (
+                    path.startsWith("/auth") ||
+                            path.startsWith("/uploads") ||
+                            path.equals("/products/all") ||
+                            path.matches("/products/\\d+")
+            ) {
                 filterChain.doFilter(request, response);
                 return;
             }
 
+            // 🔐 ALL OTHER APIs REQUIRE TOKEN
             String authHeader = request.getHeader("Authorization");
 
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
@@ -53,7 +54,6 @@ public class JwtFilter extends OncePerRequestFilter {
 
             String token = authHeader.substring(7);
 
-            // validate token safely
             if (!JwtUtil.validateToken(token)) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                 response.getWriter().write("{\"error\":\"Invalid or expired token\"}");
@@ -63,13 +63,13 @@ public class JwtFilter extends OncePerRequestFilter {
             String email = JwtUtil.extractEmail(token);
             String role = JwtUtil.extractRole(token);
 
-            if (email == null) {
+            if (email == null || role == null) {
                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                response.getWriter().write("{\"error\":\"Invalid token data\"}");
+                response.getWriter().write("{\"error\":\"Invalid token\"}");
                 return;
             }
 
-// FIX ROLE CLEANLY
+            // FIX ROLE FORMAT
             if (!role.startsWith("ROLE_")) {
                 role = "ROLE_" + role;
             }
@@ -82,6 +82,7 @@ public class JwtFilter extends OncePerRequestFilter {
                     );
 
             SecurityContextHolder.getContext().setAuthentication(auth);
+
             request.setAttribute("email", email);
             request.setAttribute("role", role);
 
