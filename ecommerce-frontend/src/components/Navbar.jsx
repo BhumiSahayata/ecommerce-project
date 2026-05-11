@@ -167,9 +167,9 @@ export default function Navbar() {
                     className="flex items-center gap-2.5 pl-2 pr-3 py-1.5 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:border-brand-400 transition-all duration-200"
                   >
                     <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
-                      <span className="text-white text-xs font-display font-bold">{user.name?.[0]?.toUpperCase()}</span>
+                      <span className="text-white text-xs font-display font-bold">{user?.name?.[0]?.toUpperCase()}</span>
                     </div>
-                    <span className="text-sm font-medium text-primary max-w-[100px] truncate">{user.name}</span>
+                    <span className="text-sm font-medium text-primary max-w-[100px] truncate">{user?.name}</span>
                     <span className={`text-[10px] font-display font-bold px-1.5 py-0.5 rounded-md ${
                       user.role === "MERCHANT"
                         ? "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300"
@@ -270,10 +270,10 @@ export default function Navbar() {
                 <div className="pt-2 mt-2 border-t border-[var(--border-subtle)] space-y-1">
                   <div className="px-3 py-2 flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center">
-                      <span className="text-white text-xs font-bold">{user.name?.[0]?.toUpperCase()}</span>
+                      <span className="text-white text-xs font-bold">{user?.name?.[0]?.toUpperCase()}</span>
                     </div>
                     <div>
-                      <p className="text-sm font-medium text-primary">{user.name}</p>
+                      <p className="text-sm font-medium text-primary">{user?.name}</p>
                       <p className="text-xs text-muted">{user.role}</p>
                     </div>
                   </div>

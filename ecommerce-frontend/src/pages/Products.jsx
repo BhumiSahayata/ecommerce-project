@@ -30,7 +30,7 @@ export default function Products() {
     if (!user || user.role !== "USER") return;
     try {
       const res = await API.get("/wishlist");
-      setWishlistIds(res.data.map(i => i.productId));
+      setWishlistIds(res.data?.map(i => i.productId));
     } catch {}
   }, [user]);
 

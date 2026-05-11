@@ -705,7 +705,7 @@ export default function MerchantDashboard() {
       {orders.length === 0 ? (
         <div className="text-center py-10 text-stone-400">No orders yet</div>
       ) : (
-        orders.map(order => {
+        orders?.map(order => {
           // Get current status from order object
           const currentStatus = order.status || "PLACED";
           

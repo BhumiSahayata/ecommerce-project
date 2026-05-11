@@ -6,6 +6,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { Toaster } from "react-hot-toast";
 import "./index.css";
+import "@fontsource/space-mono/400.css";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
