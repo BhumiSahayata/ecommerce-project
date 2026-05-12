@@ -63,5 +63,3 @@ public class AuthController {
         }
     }
 }
-public class AuthController {
-}
