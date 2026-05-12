@@ -94,17 +94,32 @@ public class UserController {
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> changePassword(@RequestBody Map<String, String> passwords,
                                             Authentication auth) {
+
         try {
 
-            // ✅ FIX 2: Prevent null crash
+            System.out.println("===== CHANGE PASSWORD API =====");
+
+            if (auth == null) {
+                System.out.println("AUTH IS NULL");
+                return ResponseEntity.status(401)
+                        .body(Map.of("error", "Unauthorized"));
+            }
+
+            System.out.println("Authenticated user: " + auth.getName());
+
             User user = userRepository.findByEmail(auth.getName());
+
             if (user == null) {
+                System.out.println("USER NOT FOUND IN DB");
                 return ResponseEntity.status(404)
                         .body(Map.of("error", "User not found"));
             }
 
             String currentPassword = passwords.get("currentPassword");
             String newPassword = passwords.get("newPassword");
+
+            System.out.println("Current password received");
+            System.out.println("New password received");
 
             if (currentPassword == null || newPassword == null) {
                 return ResponseEntity.status(400)
@@ -117,13 +132,19 @@ public class UserController {
             }
 
             user.setPassword(passwordEncoder.encode(newPassword));
+
             userRepository.save(user);
+
+            System.out.println("PASSWORD UPDATED SUCCESSFULLY");
 
             return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
 
         } catch (Exception e) {
+
+            e.printStackTrace();
+
             return ResponseEntity.status(500)
-                    .body(Map.of("error", "Server error: " + e.getMessage()));
+                    .body(Map.of("error", e.getMessage()));
         }
     }
 }

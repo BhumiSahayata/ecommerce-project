@@ -73,12 +73,12 @@ export default function UserProfile({ onClose }) {
         
         if (response.status === 200) {
             toast.success("Password changed successfully!");
-            setFormData({ 
-                ...formData, 
-                currentPassword: "", 
-                newPassword: "", 
-                confirmPassword: "" 
-            });
+            setFormData(prev => ({
+    ...prev,
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: ""
+}));
         }
     } catch (err) {
         console.error("Password change error:", err);
