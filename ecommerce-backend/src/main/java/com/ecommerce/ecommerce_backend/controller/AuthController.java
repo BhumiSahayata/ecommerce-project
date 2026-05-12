@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 import java.util.Map;
 
@@ -22,11 +23,17 @@ public class AuthController {
     private PasswordEncoder passwordEncoder;
 
     @PutMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<?> changePassword(
             @RequestBody ChangePasswordRequest request,
             Authentication authentication) {
 
         try {
+
+            if (authentication == null) {
+                return ResponseEntity.status(401)
+                        .body(Map.of("error", "Unauthorized"));
+            }
 
             User user = userRepository.findByEmail(authentication.getName());
 

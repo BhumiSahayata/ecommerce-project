@@ -66,7 +66,7 @@ export default function UserProfile({ onClose }) {
     }
     setLoading(true);
     try {
-        const response = await API.put("/auth/change-password", { 
+       const response = await API.put("/auth/change-password", { 
             currentPassword: formData.currentPassword, 
             newPassword: formData.newPassword 
         });
