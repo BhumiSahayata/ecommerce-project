@@ -736,7 +736,7 @@ export default function MerchantDashboard() {
               {/* Order Header */}
               <div className="p-4 bg-stone-50 border-b flex flex-wrap justify-between items-center gap-3">
                 <div>
-                  <span className="font-bold text-stone-800">Order #{order.id}</span>
+                  <span className="font-bold text-stone-800">Order #{orders.length - index}</span>
                   <p className="text-xs text-stone-400 mt-0.5">
                     {order.user?.name || "Customer"} • {new Date(order.orderDate).toLocaleDateString()}
                   </p>

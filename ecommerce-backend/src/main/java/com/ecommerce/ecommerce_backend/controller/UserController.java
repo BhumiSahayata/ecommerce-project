@@ -68,6 +68,14 @@ public class UserController {
             }
 
             if (updates.containsKey("email")) {
+
+                User existing = userRepository.findByEmail(updates.get("email"));
+
+                if (existing != null && !existing.getId().equals(user.getId())) {
+                    return ResponseEntity.status(400)
+                            .body(Map.of("error", "Email already exists"));
+                }
+
                 user.setEmail(updates.get("email"));
             }
 

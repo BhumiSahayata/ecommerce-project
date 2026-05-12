@@ -60,7 +60,7 @@ export default function UserProfile({ onClose }) {
         toast.error("Passwords don't match"); 
         return; 
     }
-    if (formData.newPassword.length < 6) { 
+    if (!formData.newPassword || formData.newPassword.length < 6) { 
         toast.error("Password must be at least 6 characters"); 
         return; 
     }
@@ -274,11 +274,11 @@ export default function UserProfile({ onClose }) {
                   </button>
                 </div>
               ) : (
-                orders.slice().reverse().map(order => (
+                orders.slice().reverse().map((order, index) => (
                   <div key={order.id} className="rounded-xl border border-stone-100 p-4 hover:shadow-md transition-shadow" style={{ background: 'var(--bg-raised)' }}>
                     <div className="flex justify-between items-start mb-3">
                       <div>
-                        <p className="text-sm font-semibold text-primary">Order #{order.id}</p>
+                        <p className="text-sm font-semibold text-primary">Order #{orders.length - index}</p>
                         <p className="text-xs text-muted">{formatDate(order.orderDate)}</p>
                       </div>
                       <span className={`text-xs font-semibold px-2 py-1 rounded-full ${getStatusColor(order.status)}`}>

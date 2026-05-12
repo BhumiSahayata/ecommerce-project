@@ -93,7 +93,7 @@ export default function Profile() {
         toast.error("Passwords don't match"); 
         return; 
     }
-    if (formData.newPassword.length < 6) { 
+    if (!formData.newPassword || formData.newPassword.length < 6) { 
         toast.error("Password must be at least 6 characters"); 
         return; 
     }
@@ -378,7 +378,7 @@ export default function Profile() {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {[...orders].reverse().map(order => {
+                      {[...orders].reverse().map((order, index) => {
                         // ✅ User can cancel only if status is PLACED or PACKED
                         const canCancel = order.status === "PLACED" || order.status === "PACKED";
                         
@@ -386,7 +386,7 @@ export default function Profile() {
                           <div key={order.id} className="rounded-xl border border-stone-100 overflow-hidden hover:shadow-md transition-shadow">
                             <div className="px-4 py-3 bg-stone-50 border-b border-stone-100 flex flex-wrap justify-between items-center gap-3">
                               <div>
-                                <p className="text-sm font-semibold text-stone-800">Order #{order.id}</p>
+                                <p className="text-sm font-semibold text-stone-800">Order #{orders.length - index}</p>
                                 <p className="text-xs text-stone-400">{formatDate(order.orderDate)}</p>
                               </div>
                               <div className="flex items-center gap-3">

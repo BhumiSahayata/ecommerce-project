@@ -144,7 +144,7 @@ const updateOrderStatus = async (orderId, newStatus) => {
       </div>
 
       <div className="space-y-6">
-        {[...orders].reverse().map((order) => {
+        {[...orders].reverse().map((order, index) => {
           // ✅ User can cancel only if status is PLACED or PACKED (before shipped)
           const canCancel = order.status === "PLACED" || order.status === "PACKED";
           
@@ -153,7 +153,7 @@ const updateOrderStatus = async (orderId, newStatus) => {
               {/* Order Header - WITH CANCEL BUTTON FOR USERS */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between px-5 py-4 bg-stone-50 border-b border-stone-100 gap-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-display font-bold text-stone-900 text-sm">Order #{order.id}</span>
+                  <span className="font-display font-bold text-stone-900 text-sm">Order #{orders.length - index}</span>
                   <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
                     order.status === "CANCELLED" ? "bg-red-100 text-red-700" :
                     order.status === "DELIVERED" ? "bg-green-100 text-green-700" :
