@@ -28,7 +28,7 @@ const handleRegister = async () => {
       login({ id: d.id, name: d.name, email: d.email, role: d.role }, d.token);
       toast.success(`Welcome, ${d.name}! 🎉`);
       
-      // ✅ Redirect merchants to merchant dashboard
+      
       if (d.role === "MERCHANT") {
         navigate("/merchant");
       } else {

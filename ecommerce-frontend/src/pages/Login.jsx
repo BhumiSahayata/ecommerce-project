@@ -13,7 +13,7 @@ export default function Login() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // In Login.jsx, update the handleLogin function:
+  
 
 const handleLogin = async () => {
   if (!email || !password) {
@@ -27,7 +27,7 @@ const handleLogin = async () => {
     const res = await API.post("/auth/login", { email, password });
     const data = res.data;
 
-    // ✅ FIX ROLE FORMAT
+    
     const role = data.role.replace("ROLE_", "");
 
     login(
@@ -42,7 +42,7 @@ const handleLogin = async () => {
 
     toast.success(`Welcome ${data.name}`);
 
-    // ✅ REDIRECTION
+    
     if (role === "MERCHANT") {
       navigate("/merchant");
     } else {

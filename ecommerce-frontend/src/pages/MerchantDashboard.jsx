@@ -1,12 +1,11 @@
-import { useEffect, useState } from "react";
+
 import API from "../api/axios";
 import toast from "react-hot-toast";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import { getImageUrl } from "../utils/imageUtils";
+import { useEffect, useState, useCallback } from "react";
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   XAxis,
@@ -14,7 +13,8 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend
+  Legend,
+  Line
 } from "recharts";
 
 const EMPTY_FORM = { 
@@ -60,11 +60,15 @@ export default function MerchantDashboard() {
   });
   const [form, setForm] = useState(EMPTY_FORM);
   const [editId, setEditId] = useState(null);
-  const [showForm, setShowForm] = useState(false);
+  
   const [loading, setLoading] = useState(false);
-  const [productSuggestions, setProductSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
+  
+
   const [updatingStatus, setUpdatingStatus] = useState({});
+  const [cancelLoading, setCancelLoading] = useState({});
+  const [deletingId, setDeletingId] = useState(null);
+ 
+const [dashboardLoading, setDashboardLoading] = useState(true);
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
@@ -83,12 +87,24 @@ export default function MerchantDashboard() {
  const fetchOrders = async () => {
   try {
     const res = await API.get("/orders/merchant");
-    console.log("Fetched orders:", res.data); // Debug: check if status is updating
-    setOrders(res.data);
-    return res.data;
-  } catch (err) { 
+
+    const updatedOrders = res.data.map(order => ({
+      ...order,
+      status: order.status || "PLACED",
+      items: order.items?.map(item => ({
+        ...item,
+        status: item.status || order.status || "PLACED"
+      })) || []
+    }));
+
+    setOrders(updatedOrders);
+
+    return updatedOrders;
+
+  } catch (err) {
     console.error("Error fetching orders:", err);
-    return []; 
+    toast.error("Failed to load orders");
+    return [];
   }
 };
 
@@ -109,60 +125,102 @@ export default function MerchantDashboard() {
     const date = new Date(order.orderDate);
     let key;
     if (type === "weekly") {
-      const weekNum = Math.ceil(date.getDate() / 7);
-      key = `Week ${weekNum}`;
-    } else {
-      key = date.toLocaleString('default', { month: 'short' });
-    }
+  const weekNum = Math.ceil(date.getDate() / 7);
+  key = `Week ${weekNum}`;
+} else {
+  key = date.toLocaleString('default', { month: 'short' });
+}
     
     if (!groupedData[key]) {
       groupedData[key] = { name: key, revenue: 0, orders: 0, profit: 0 };
     }
     groupedData[key].revenue += order.totalAmount || 0;
     groupedData[key].orders += 1;
-    // 30% profit margin
+    
     groupedData[key].profit += (order.totalAmount || 0) * 0.3;
   });
   
   return Object.values(groupedData);
 };
 
-  const calculateStats = async () => {
-    const productsData = await fetchProducts();
-    const ordersData = await fetchOrders();
-    const reviewsData = await fetchReviews();
-    
-    const totalRevenue = ordersData.reduce((sum, order) => sum + (order.totalAmount || 0), 0);
-    const pendingOrders = ordersData.filter(o => 
-      o.items?.some(item => item.status !== "DELIVERED" && item.status !== "CANCELLED")
-    ).length;
-    const lowStock = productsData.filter(p => p.stockQuantity > 0 && p.stockQuantity <= 10).length;
-    const avgRating = reviewsData.length > 0 
-      ? (reviewsData.reduce((sum, r) => sum + r.rating, 0) / reviewsData.length).toFixed(1)
+  const calculateStatsFromData = (productsData, ordersData, reviewsData) => {
+
+  const totalRevenue = ordersData.reduce(
+    (sum, order) => sum + (order.totalAmount || 0),
+    0
+  );
+
+  const pendingOrders = ordersData.filter(o =>
+    o.items?.some(
+      item =>
+        item.status !== "DELIVERED" &&
+        item.status !== "CANCELLED"
+    )
+  ).length;
+
+  const lowStock = productsData.filter(
+    p => p.stockQuantity > 0 && p.stockQuantity <= 10
+  ).length;
+
+  const avgRating =
+    reviewsData.length > 0
+      ? (
+          reviewsData.reduce((sum, r) => sum + r.rating, 0) /
+          reviewsData.length
+        ).toFixed(1)
       : 0;
-    
-    // Calculate profit/loss (assuming 30% profit margin, 10% operational costs)
-    const profit = totalRevenue * 0.3;
-    const loss = totalRevenue * 0.1;
-    
-    setStats({
-      totalOrders: ordersData.length,
-      totalRevenue,
-      totalProducts: productsData.length,
-      lowStockProducts: lowStock,
-      pendingOrders,
-      averageRating: avgRating,
-      profit,
-      loss
-    });
-    
-    // Set chart data
-    setChartData(calculateChartData(ordersData, chartType));
+
+  const profit = totalRevenue * 0.3;
+  const loss = totalRevenue * 0.1;
+
+  setStats({
+    totalOrders: ordersData.length,
+    totalRevenue,
+    totalProducts: productsData.length,
+    lowStockProducts: lowStock,
+    pendingOrders,
+    averageRating: avgRating,
+    profit,
+    loss
+  });
+
+  setChartData(calculateChartData(ordersData, chartType));
+};
+
+ useEffect(() => {
+
+  const loadDashboard = async () => {
+
+    setDashboardLoading(true);
+
+    try {
+
+      const [productsData, ordersData, reviewsData] =
+        await Promise.all([
+          fetchProducts(),
+          fetchOrders(),
+          fetchReviews()
+        ]);
+
+      calculateStatsFromData(
+        productsData,
+        ordersData,
+        reviewsData
+      );
+
+    } catch (err) {
+
+      console.error(err);
+
+    } finally {
+
+      setDashboardLoading(false);
+    }
   };
 
-  useEffect(() => {
-    calculateStats();
-  }, []);
+  loadDashboard();
+
+}, []);
 
   useEffect(() => {
     if (orders.length > 0) {
@@ -170,43 +228,9 @@ export default function MerchantDashboard() {
     }
   }, [chartType, orders]);
 
-  const updateOrderStatus = async (orderId, newStatus) => {
-    setUpdatingStatus(prev => ({ ...prev, [orderId]: true }));
-    try {
-      // First try to update the main order status
-      const response = await API.put(`/orders/${orderId}/status`, null, {
-        params: { status: newStatus }
-      });
-      
-      if (response.status === 200 || response.status === 201) {
-        toast.success(`Order status updated to ${newStatus}!`);
-        await calculateStats(); // Refresh stats
-        await fetchOrders(); // Refresh orders list
-      }
-    } catch (err) {
-      console.error("Error updating status:", err);
-      toast.error(err.response?.data?.error || "Failed to update status");
-    } finally {
-      setUpdatingStatus(prev => ({ ...prev, [orderId]: false }));
-    }
-  };
-
   
 
-  const fetchProductSuggestions = async (searchTerm) => {
-    if (!searchTerm || searchTerm.length < 2) {
-      setProductSuggestions([]);
-      return;
-    }
-    try {
-      const res = await API.get("/products/all");
-      const suggestions = res.data
-        .filter(p => p.name.toLowerCase().includes(searchTerm.toLowerCase()))
-        .slice(0, 5);
-      setProductSuggestions(suggestions);
-      setShowSuggestions(suggestions.length > 0);
-    } catch (err) { console.error("Error fetching suggestions:", err); }
-  };
+  
 
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
@@ -237,13 +261,20 @@ export default function MerchantDashboard() {
       } else {
         await API.post("/products/add", data);
         toast.success("Product added!");
+        const updatedProducts = await fetchProducts();
+
+calculateStatsFromData(
+  updatedProducts,
+  orders,
+  reviews
+);
       }
 
       setForm(EMPTY_FORM);
-      setEditId(null);
-      setShowForm(false);
-      calculateStats();
-      handleTabChange("products");
+setEditId(null);
+
+
+handleTabChange("products");
     } catch (err) {
       console.error(err);
       toast.error(err.response?.data || "Error saving product");
@@ -263,55 +294,107 @@ export default function MerchantDashboard() {
       imageFile: null,
     });
     setEditId(product.id);
-    setShowForm(true);
+    
     handleTabChange("add-product");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Delete this product?")) return;
-    try {
-      await API.delete(`/products/${id}`);
-      toast.success("Product deleted");
-      calculateStats();
-    } catch { toast.error("Failed to delete"); }
-  };
 
-  const updateOrderItemStatus = async (orderItemId, status) => {
-    try {
-      const response = await API.put(`/orders/item/${orderItemId}/status?status=${status}`);
-      if (response.status === 200 || response.status === 201) {
-        toast.success(`Item status updated to ${status}!`);
-        await calculateStats();
-        await fetchOrders();
-      }
-    } catch (err) {
-      console.error("Error updating status:", err);
-      toast.error(err.response?.data?.error || "Failed to update status");
-    }
-  };
+  if (!window.confirm("Delete this product?")) return;
 
-  // Cancel order function for merchant
+  setDeletingId(id);
+
+  try {
+
+    await API.delete(`/products/${id}`);
+
+    toast.success("Product deleted");
+
+    const updatedProducts = await fetchProducts();
+
+    setProducts(updatedProducts);
+
+    calculateStatsFromData(
+      updatedProducts,
+      orders,
+      reviews
+    );
+
+  } catch {
+
+    toast.error("Failed to delete");
+
+  } finally {
+
+    setDeletingId(null);
+  }
+};
+
+
  const cancelOrder = async (orderId) => {
-    if (!window.confirm("Are you sure you want to cancel this order?")) return;
-    try {
-      const response = await API.put(`/orders/${orderId}/cancel`);
-      if (response.status === 200 || response.status === 201) {
-        toast.success("Order cancelled successfully!");
-        calculateStats();
-        fetchOrders();
+
+  if (!window.confirm("Are you sure you want to cancel this order?")) return;
+
+  setCancelLoading(prev => ({
+    ...prev,
+    [orderId]: true
+  }));
+
+  try {
+
+    const response = await API.put(`/orders/${orderId}/cancel`);
+
+    if (response.status === 200 || response.status === 201) {
+
+      toast.success("Order cancelled successfully!");
+
+      const updatedOrders = orders.map(o =>
+  o.id === orderId
+    ? {
+        ...o,
+        status: "CANCELLED",
+        items: (o.items || []).map(item => ({
+          ...item,
+          status: "CANCELLED"
+        }))
       }
-    } catch (err) {
-      console.error("Cancel error:", err);
-      const errorMsg = err.response?.data?.error || err.response?.data?.message || "Failed to cancel order";
-      toast.error(errorMsg);
+    : o
+);
+
+setOrders(updatedOrders);
+
+calculateStatsFromData(
+  products,
+  updatedOrders,
+  reviews
+);
     }
-  };
+
+  } catch (err) {
+
+    console.error("Cancel error:", err);
+
+    const errorMsg =
+      err.response?.data?.error ||
+      err.response?.data?.message ||
+      "Failed to cancel order";
+
+    toast.error(errorMsg);
+
+  } finally {
+
+    setCancelLoading(prev => ({
+      ...prev,
+      [orderId]: false
+    }));
+  }
+};
 
   const getStatusClass = (status) => {
     switch(status) {
       case "PLACED": return "bg-blue-100 text-blue-700";
-      case "PACKED": return "bg-amber-600 text-amber-700";  
+      case "PACKED": return "bg-amber-100 text-amber-700";  
       case "SHIPPED": return "bg-violet-100 text-violet-700";
       case "DELIVERED": return "bg-green-100 text-green-700";
       case "CANCELLED": return "bg-red-100 text-red-700";
@@ -401,7 +484,16 @@ export default function MerchantDashboard() {
       {/* Main Content */}
       <main className="flex-1 p-4 md:p-6 w-full">
         {/* Dashboard */}
-        {activeTab === "dashboard" && (
+        {/* Dashboard */}
+{activeTab === "dashboard" && (
+
+  dashboardLoading ? (
+
+    <div className="flex items-center justify-center h-[70vh]">
+      <div className="w-12 h-12 border-4 border-brand-500 border-t-transparent rounded-full animate-spin"></div>
+    </div>
+
+  ) : (
           <div>
             <div className="mb-6">
               <h1 className="font-display text-2xl font-bold text-stone-900">Dashboard</h1>
@@ -571,7 +663,8 @@ export default function MerchantDashboard() {
               <div className="bg-white rounded-xl border p-4"><h3 className="font-semibold mb-2">Quick Actions</h3><button onClick={() => handleTabChange("add-product")} className="w-full bg-brand-50 text-brand-600 p-2 rounded-lg text-sm">+ Add Product</button></div>
             </div>
           </div>
-        )}
+                )
+)}
 
         {activeTab === "add-product" && (
           <div>
@@ -671,7 +764,10 @@ export default function MerchantDashboard() {
                     {loading ? "Saving..." : (editId ? "Update Product" : "Add Product")}
                   </button>
                   <button 
-                    onClick={() => {setForm(EMPTY_FORM); setEditId(null); setShowForm(false);}} 
+                    onClick={() => {
+  setForm(EMPTY_FORM);
+  setEditId(null);
+}}
                     className="border border-stone-300 text-stone-600 hover:bg-stone-50 font-medium px-6 py-2.5 rounded-lg transition-colors"
                   >
                     Cancel
@@ -689,8 +785,14 @@ export default function MerchantDashboard() {
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {products.map(p => (
                 <div key={p.id} className="bg-white rounded-xl border overflow-hidden">
-                  <img src={getImageUrl(p.imageUrl) || "/placeholder.png"} alt={p.name} className="w-full h-32 object-cover" onError={(e) => e.target.src="/placeholder.png"} />
-                  <div className="p-2"><p className="font-semibold text-sm truncate">{p.name}</p><p className="text-brand-600 font-bold">₹{p.price}</p><div className="flex gap-1 mt-1"><button onClick={() => handleEdit(p)} className="text-xs bg-stone-100 px-2 py-1 rounded">Edit</button><button onClick={() => handleDelete(p.id)} className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded">Delete</button></div></div>
+                  <img loading="lazy" src={getImageUrl(p.imageUrl) || "/placeholder.png"} alt={p.name} className="w-full h-32 object-cover" onError={(e) => e.target.src="/placeholder.png"} />
+                  <div className="p-2"><p className="font-semibold text-sm truncate">{p.name}</p><p className="text-brand-600 font-bold">₹{p.price}</p><div className="flex gap-1 mt-1"><button
+  onClick={() => handleDelete(p.id)}
+  disabled={deletingId === p.id}
+  className="text-xs bg-red-50 text-red-600 px-2 py-1 rounded disabled:opacity-50"
+>
+  {deletingId === p.id ? "Deleting..." : "Delete"}
+</button></div></div>
                 </div>
               ))}
             </div>
@@ -706,10 +808,10 @@ export default function MerchantDashboard() {
         <div className="text-center py-10 text-stone-400">No orders yet</div>
       ) : (
         orders?.map((order, index) => {
-          // Get current status from order object
+         
           const currentStatus = order.status || "PLACED";
           
-          // ✅ Status color mapping with BLUE for PACKED
+          
           const getStatusStyle = (status) => {
             switch(status) {
               case "PLACED": return "bg-blue-100 text-blue-700";
@@ -754,31 +856,64 @@ export default function MerchantDashboard() {
                   <select
                     value={currentStatus}
                     onChange={async (e) => {
-                      const newStatus = e.target.value;
-                      setUpdatingStatus(prev => ({ ...prev, [order.id]: true }));
-                      try {
-                        // Call API to update status
-                        const response = await API.put(`/orders/${order.id}/status`, null, {
-                          params: { status: newStatus }
-                        });
-                        
-                        if (response.status === 200 || response.status === 201) {
-                          toast.success(`Order #${order.id} updated to ${newStatus}`);
-                          
-                          // ✅ IMPORTANT: Refresh orders to get updated status
-                          const freshOrders = await fetchOrders();
-                          setOrders(freshOrders);
-                          
-                          // Also refresh stats
-                          calculateStats();
-                        }
-                      } catch (err) {
-                        console.error("Update error:", err);
-                        toast.error(err.response?.data?.error || "Failed to update status");
-                      } finally {
-                        setUpdatingStatus(prev => ({ ...prev, [order.id]: false }));
-                      }
-                    }}
+  const newStatus = e.target.value;
+
+  setUpdatingStatus(prev => ({
+    ...prev,
+    [order.id]: true
+  }));
+
+  try {
+
+    await API.put(
+      `/orders/${order.id}/status`,
+      {},
+      {
+        params: { status: newStatus }
+      }
+    );
+
+    
+    const updatedOrders = orders.map(o =>
+  o.id === order.id
+    ? {
+        ...o,
+        status: newStatus,
+        items: (o.items || []).map(item => ({
+          ...item,
+          status: newStatus
+        }))
+      }
+    : o
+);
+
+setOrders(updatedOrders);
+
+toast.success(`Order updated to ${newStatus}`);
+
+calculateStatsFromData(
+  products,
+  updatedOrders,
+  reviews
+);
+
+  } catch (err) {
+
+    console.error(err);
+
+    toast.error(
+      err.response?.data?.message ||
+      "Failed to update order"
+    );
+
+  } finally {
+
+    setUpdatingStatus(prev => ({
+      ...prev,
+      [order.id]: false
+    }));
+  }
+}}
                     disabled={updatingStatus[order.id]}
                     className="text-xs border rounded-lg px-2 py-1.5 bg-white"
                   >
@@ -810,7 +945,7 @@ export default function MerchantDashboard() {
                   return (
                     <div key={item.id} className="p-4 flex gap-3">
                       <img 
-                        src={getImageUrl(product?.imageUrl)} 
+                        src={getImageUrl(product?.imageUrl) || "/placeholder.png"} 
                         className="w-12 h-12 rounded-lg object-cover bg-stone-100" 
                         alt={product?.name}
                         onError={(e) => e.target.src = "/placeholder.png"}
@@ -825,17 +960,48 @@ export default function MerchantDashboard() {
                         <select
                           value={item.status || "PLACED"}
                           onChange={async (e) => {
-                            const newStatus = e.target.value;
-                            try {
-                              await API.put(`/orders/item/${item.id}/status?status=${newStatus}`);
-                              toast.success(`Item status updated to ${newStatus}`);
-                              // Refresh entire orders
-                              const freshOrders = await fetchOrders();
-                              setOrders(freshOrders);
-                            } catch (err) {
-                              toast.error("Failed to update item status");
-                            }
-                          }}
+
+  const newStatus = e.target.value;
+
+  try {
+
+    await API.put(
+      `/orders/item/${item.id}/status`,
+      {},
+      {
+        params: { status: newStatus }
+      }
+    );
+
+    
+    setOrders(prev =>
+      prev.map(o => ({
+        ...o,
+        items: o.items.map(i =>
+          i.id === item.id
+            ? { ...i, status: newStatus }
+            : i
+        )
+      }))
+    );
+
+    toast.success(`Item updated to ${newStatus}`);
+
+    const freshOrders = await fetchOrders();
+
+    calculateStatsFromData(
+      products,
+      freshOrders,
+      reviews
+    );
+
+  } catch (err) {
+
+    console.error(err);
+
+    toast.error("Failed to update item status");
+  }
+}}
                           className="text-xs border rounded px-1 py-0.5 mt-1"
                         >
                           {STATUS_OPTIONS.map(opt => (

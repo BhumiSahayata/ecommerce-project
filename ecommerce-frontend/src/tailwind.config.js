@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
-  darkMode: "class",   // <-- CRITICAL: .dark class on <html> triggers dark mode
+  darkMode: "class",   
   theme: {
     extend: {
       colors: {
@@ -19,11 +19,11 @@ export default {
         },
       },
       fontFamily: {
-        // display = Times New Roman (serif headings)
+       
         display: ["'Times New Roman'", "Georgia", "Cambria", "serif"],
-        // body = DM Sans
+        
         body:    ["'DM Sans'", "system-ui", "sans-serif"],
-        // mono stays mono
+        
         mono:    ["'DM Mono'", "Consolas", "monospace"],
       },
       animation: {

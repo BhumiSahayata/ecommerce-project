@@ -1,10 +1,10 @@
-// src/services/NotificationService.jsx
+
 import API from "../api/axios";
 
-// Simple Browser Notification Service - No third-party required
+
 class NotificationService {
   
-  // Request permission from user
+  
   static async requestPermission() {
     if (!("Notification" in window)) {
       console.log("This browser does not support notifications");
@@ -26,7 +26,7 @@ class NotificationService {
     return false;
   }
   
-  // Show a notification
+  
   static showNotification(title, body, icon = null) {
     if (Notification.permission === "granted") {
       const options = {
@@ -49,7 +49,7 @@ class NotificationService {
     }
   }
   
-  // Send order confirmation notification
+  
   static notifyOrderPlaced(orderId, amount) {
     return this.showNotification(
       "🎉 Order Placed Successfully!",
@@ -57,7 +57,7 @@ class NotificationService {
     );
   }
   
-  // Send order status update notification
+ 
   static notifyOrderStatusUpdate(orderId, status) {
     const messages = {
       "PLACED": "Your order has been placed and is being processed.",
@@ -81,7 +81,7 @@ class NotificationService {
     );
   }
   
-  // Send low stock notification (for merchants)
+ 
   static notifyLowStock(productName, stockLeft) {
     return this.showNotification(
       "⚠️ Low Stock Alert",
@@ -89,7 +89,6 @@ class NotificationService {
     );
   }
   
-  // Send welcome notification
   static notifyWelcome(userName) {
     return this.showNotification(
       "👋 Welcome to ShopEase!",

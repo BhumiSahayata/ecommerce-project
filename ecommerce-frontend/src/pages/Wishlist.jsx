@@ -21,7 +21,7 @@ export default function Wishlist() {
         try {
           const p = await API.get(`/products/${item.productId}`);
           if (p.data) {
-            // Fix image URL using getImageUrl
+            
             if (p.data.imageUrl) {
               p.data.fullImageUrl = getImageUrl(p.data.imageUrl);
             } else {

@@ -46,7 +46,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [bannerIdx, setBannerIdx] = useState(0);
   const [bannerFade, setBannerFade] = useState(true);
-  // track dark mode for category bg colours
+ 
   const [isDark, setIsDark] = useState(document.documentElement.classList.contains("dark"));
 
   useEffect(() => {
@@ -55,13 +55,12 @@ export default function Home() {
       .catch(() => {})
       .finally(() => setLoading(false));
 
-    // Banner rotation
     const t = setInterval(() => {
       setBannerFade(false);
       setTimeout(() => { setBannerIdx((i) => (i + 1) % BANNERS.length); setBannerFade(true); }, 320);
     }, 4200);
 
-    // Watch dark/light toggle
+    
     const obs = new MutationObserver(() => {
       setIsDark(document.documentElement.classList.contains("dark"));
     });

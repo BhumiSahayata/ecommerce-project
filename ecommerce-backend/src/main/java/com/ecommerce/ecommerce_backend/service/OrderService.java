@@ -5,6 +5,7 @@ import com.ecommerce.ecommerce_backend.model.*;
 import com.ecommerce.ecommerce_backend.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -94,7 +95,7 @@ public class OrderService {
         return orderRepo.findByUser(user);
     }
 
-    // Merchant updates individual order item status
+    @Transactional
     public OrderItem updateOrderItemStatus(Long orderItemId, String status, Long merchantId) {
         OrderItem orderItem = orderItemRepo.findById(orderItemId)
                 .orElseThrow(() -> new RuntimeException("Order item not found"));
@@ -111,7 +112,7 @@ public class OrderService {
         return orderItemRepo.save(orderItem);
     }
 
-    // ✅ FIXED: Update main order status
+    @Transactional
     public Order updateOrderStatus(Long orderId, String status, Long merchantId) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
@@ -183,6 +184,7 @@ public class OrderService {
     }
 
     // Cancel order - User side
+    @Transactional
     public Order cancelOrder(Long orderId, User user) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));

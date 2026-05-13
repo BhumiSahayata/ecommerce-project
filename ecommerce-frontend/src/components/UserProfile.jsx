@@ -111,7 +111,7 @@ export default function UserProfile({ onClose }) {
   try {
     await API.put(`/orders/${orderId}/cancel`);
     toast.success("Order cancelled successfully!");
-    fetchOrders(); // Refresh orders list
+    fetchOrders(); 
   } catch (err) {
     toast.error(err.response?.data?.error || "Failed to cancel order");
   }

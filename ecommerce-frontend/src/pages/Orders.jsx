@@ -52,7 +52,7 @@ export default function Orders() {
     }
   };
 
-  // ✅ User can cancel order only if status is PLACED or PACKED (before shipped)
+  
   const cancelOrder = async (orderId) => {
     if (!window.confirm("Are you sure you want to cancel this order?")) return;
     setCancelling(true);
@@ -71,7 +71,7 @@ export default function Orders() {
     }
   };
 
-  // ✅ FIXED: Update order status - this will refresh the orders list
+  
 const updateOrderStatus = async (orderId, newStatus) => {
   setUpdatingStatus(prev => ({ ...prev, [orderId]: true }));
   try {
@@ -82,13 +82,13 @@ const updateOrderStatus = async (orderId, newStatus) => {
     if (response.status === 200 || response.status === 201) {
       toast.success(`Order status updated to ${newStatus}!`);
       
-      // ✅ CRITICAL: Refresh orders to update the badge
+      
       const updatedOrders = await fetchOrders();
       
-      // ✅ Also refresh stats
+      
       await calculateStats();
       
-      // ✅ Force a re-render by updating state
+      
       setOrders([...updatedOrders]);
     }
   } catch (err) {
@@ -145,7 +145,7 @@ const updateOrderStatus = async (orderId, newStatus) => {
 
       <div className="space-y-6">
         {[...orders].reverse().map((order, index) => {
-          // ✅ User can cancel only if status is PLACED or PACKED (before shipped)
+          
           const canCancel = order.status === "PLACED" || order.status === "PACKED";
           
           return (
@@ -203,7 +203,7 @@ const updateOrderStatus = async (orderId, newStatus) => {
                     <div key={item.id} className="p-4 flex gap-4">
                       <div className="w-16 h-16 bg-stone-100 rounded-xl overflow-hidden flex-shrink-0">
                         {imageUrl ? (
-                          <img src={imageUrl} alt={product?.name} className="w-full h-full object-cover" />
+                          <img  src={imageUrl} alt={product?.name} className="w-full h-full object-cover" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">
                             <svg className="w-6 h-6 text-stone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">

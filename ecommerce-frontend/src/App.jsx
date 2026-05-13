@@ -23,13 +23,13 @@ function ProtectedRoute({ children, role, redirectTo = "/login" }) {
   
   if (!user) return <Navigate to={redirectTo} replace />;
   
-  // If role is specified and user doesn't have it, redirect
+  
   if (role && user.role !== role) {
-    // Merchants trying to access user pages go to merchant dashboard
+    
     if (user.role === "MERCHANT" && (role === "USER" || role === "CUSTOMER")) {
       return <Navigate to="/merchant" replace />;
     }
-    // Users trying to access merchant pages go to products
+   
     if (user.role === "USER" && role === "MERCHANT") {
       return <Navigate to="/products" replace />;
     }
@@ -39,22 +39,22 @@ function ProtectedRoute({ children, role, redirectTo = "/login" }) {
   return children;
 }
 
-// Customer-only route (regular shoppers)
+
 function CustomerRoute({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  // Merchants cannot access customer pages
+  
   if (user?.role === "MERCHANT") {
     return <Navigate to="/merchant" replace />;
   }
   return children;
 }
 
-// Merchant-only route
+
 function MerchantRoute({ children }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  // Regular users cannot access merchant pages
+  
   if (user?.role === "USER") {
     return <Navigate to="/products" replace />;
   }
@@ -80,7 +80,7 @@ function App() {
     </div>
   );
 
-  // Only show footer on home page
+  
   const showFooter = location.pathname === "/";
 
   return (

@@ -34,7 +34,7 @@ export default function Cart() {
           try {
             const pRes = await API.get(`/products/${item.productId}`);
             if (pRes.data) {
-              // Fix image URL using getImageUrl
+              
               if (pRes.data.imageUrl) {
                 pRes.data.fullImageUrl = getImageUrl(pRes.data.imageUrl);
               } else {

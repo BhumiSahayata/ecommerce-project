@@ -97,6 +97,13 @@ public class OrderController {
 
     private User getLoggedInUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        return userRepository.findByEmail(auth.getName());
+
+        User user = userRepository.findByEmail(auth.getName());
+
+        if(user == null){
+            throw new RuntimeException("User not found");
+        }
+
+        return user;
     }
 }

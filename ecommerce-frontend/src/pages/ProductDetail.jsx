@@ -34,7 +34,7 @@ export default function ProductDetail() {
   const fetchProduct = async () => {
     try {
       const res = await API.get(`/products/${id}`);
-      // Fix image URL - add base URL if needed
+      
      if (res.data.imageUrl) {
   res.data.imageUrl = getImageUrl(res.data.imageUrl);
 }

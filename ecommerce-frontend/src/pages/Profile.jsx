@@ -42,7 +42,7 @@ export default function Profile() {
         const res = await API.get("/orders");
         setOrders(res.data);
         
-        // Fetch product details for order items
+        
         const allItems = res.data.flatMap(o => o.items || []);
         const uniqueProductIds = [...new Set(allItems.map(i => i.productId))];
         
@@ -125,7 +125,7 @@ export default function Profile() {
     }
 };
 
-  // ✅ Cancel Order Function - Refreshes orders after cancellation
+  
   const cancelOrder = async (orderId) => {
     if (!window.confirm("Are you sure you want to cancel this order?")) return;
     setCancelling(true);
@@ -379,7 +379,7 @@ export default function Profile() {
                   ) : (
                     <div className="space-y-4">
                       {[...orders].reverse().map((order, index) => {
-                        // ✅ User can cancel only if status is PLACED or PACKED
+                        
                         const canCancel = order.status === "PLACED" || order.status === "PACKED";
                         
                         return (

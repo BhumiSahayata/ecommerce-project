@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import UserProfile from "./UserProfile";
 import NotificationService from "../services/NotificationService";
 
-// ShopEase Logo SVG
+
 function Logo() {
   return (
     <Link to="/" className="flex items-center gap-2">
@@ -28,7 +28,7 @@ function Logo() {
   );
 }
 
-// Theme Toggle
+
 function ThemeToggle() {
   const { toggle, isDark } = useTheme();
   return (
