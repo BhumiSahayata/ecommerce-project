@@ -33,7 +33,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
 
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers(
+                                "/auth/login",
+                                "/auth/register"
+                        ).permitAll()
                         .requestMatchers("/uploads/**").permitAll()
                         .requestMatchers("/products/all").permitAll()
                         .requestMatchers("/products/{id}").permitAll()

@@ -44,7 +44,13 @@ export default function UserProfile({ onClose }) {
     try {
       await API.put("/auth/profile", { name: formData.name, email: formData.email });
       login({ ...user, name: formData.name, email: formData.email }, localStorage.getItem("token"));
-      toast.success("Profile updated successfully!");
+     toast.success("Profile updated! Please login again.");
+
+localStorage.removeItem("token");
+
+setTimeout(() => {
+  window.location.href = "/login";
+}, 1500);
       setIsEditing(false);
     } catch (err) {
       toast.error(err.response?.data?.error || "Failed to update profile");
