@@ -34,7 +34,8 @@ public class JwtFilter extends OncePerRequestFilter {
 
             // ✅ PUBLIC APIs ONLY (NO TOKEN REQUIRED)
             if (
-                    path.startsWith("/auth") ||
+                    path.equals("/auth/login") ||
+                            path.equals("/auth/register") ||
                             path.startsWith("/uploads") ||
                             path.equals("/products/all") ||
                             path.matches("/products/\\d+")

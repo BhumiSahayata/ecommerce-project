@@ -3,7 +3,7 @@ import { BACKEND_URL } from "../constants";
 
 const API = axios.create({
   baseURL: BACKEND_URL,
-   timeout: 10000,
+   timeout: 60000,
 });
 
 API.interceptors.request.use((req) => {
