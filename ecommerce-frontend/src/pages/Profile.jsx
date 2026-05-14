@@ -75,7 +75,7 @@ export default function Profile() {
     if (!formData.name) { toast.error("Name is required"); return; }
     setLoading(true);
     try {
-      await API.put("/auth/profile", { name: formData.name, email: formData.email });
+      await API.put("/user/profile", { name: formData.name, email: formData.email });
       login({ ...user, name: formData.name, email: formData.email }, localStorage.getItem("token"));
       toast.success("Profile updated! Please login again.");
 
